@@ -20,8 +20,12 @@ PLAYER Player;
 NPC npc;
 int32_t gMonitorWidth;
 int32_t gMonitorHeight;
+
 GAMEBITMAP Room_Sprite;
-GAMEBITMAP Tiles;
+GAMEBITMAP Background;
+
+GAMEBITMAP Tile_Sprite_Sheet;
+TILE Tiles[1600];
 
 
 
@@ -58,17 +62,32 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         return result;
     }
     
+    
     if(Load32BppBitmapFromFile("assets\\tiles\\test-floor.bmp",&Room_Sprite) != ERROR_SUCCESS){
         MessageBoxA(NULL, "Unable to load font sheet into memory", "Error", MB_ICONEXCLAMATION | MB_OK);
         result = GetLastError();
         return result;
     }
+    
+        
+    if(Load32BppBitmapFromFile("assets\\tiles\\test_tiles.bmp",&Tile_Sprite_Sheet) != ERROR_SUCCESS){
+        MessageBoxA(NULL, "Unable to load font sheet into memory", "Error", MB_ICONEXCLAMATION | MB_OK);
+        result = GetLastError();
+        return result;
+    }
+
+    InitTiles(Tile_Sprite_Sheet);
+    BuiltTileMap(Tiles,&Background);
+
 
     if (timeBeginPeriod(1) == TIMERR_NOCANDO){
         MessageBoxA(NULL, "Unable to set time res", "Error", MB_ICONEXCLAMATION | MB_OK);
         result = GetLastError();
         return result;
     }
+
+    
+    
 
     
     HMODULE NtDllModuleHandle;
@@ -448,7 +467,7 @@ VOID process_player_input(void){
         Player.direction = DIR_LEFT;
         if(!Ctr_KeyDown){
             Player.animation_step = 1;
-            Player.movementRemaining = 32;
+            Player.movementRemaining = 25;
             Player.idleFrameCount = 0;
         }
     }
@@ -456,26 +475,32 @@ VOID process_player_input(void){
          Player.direction = DIR_RIGHT;
         if(!Ctr_KeyDown){
             Player.animation_step = 1;
-            Player.movementRemaining = 32;
+            Player.movementRemaining = 25;
             Player.idleFrameCount = 0;
         }
     }
     else if (W_KeyDown){
          Player.direction = DIR_UP;
+         if(GetNextPlayerTile(&Player,3) == 0){
         if(!Ctr_KeyDown){
             Player.animation_step = 1;
-            Player.movementRemaining = 32;
+            Player.movementRemaining = 25;
             Player.idleFrameCount = 0;
         }
+         }
 
     }
     else if (S_KeyDown){
         Player.direction = DIR_DOWN;
-        if(!Ctr_KeyDown){
+        if(GetNextPlayerTile(&Player,0) == 0){
+            if(!Ctr_KeyDown){
             Player.animation_step = 1;
-            Player.movementRemaining = 32;
+            Player.movementRemaining = 25;
             Player.idleFrameCount = 0;
         }
+
+        }
+        
 
     }
 
@@ -491,10 +516,10 @@ VOID process_player_input(void){
             Player.movementRemaining--;
             
             
-            if (Player.movementRemaining < 24){
+            if (Player.movementRemaining < 20){
                 Player.animation_step = 2;
             }
-            if (Player.movementRemaining < 16){
+            if (Player.movementRemaining < 12){
                 Player.animation_step = 3;
             }
         
@@ -504,10 +529,10 @@ VOID process_player_input(void){
             //Player.movementRemaining = Player.movementRemaining - 2;
             Player.movementRemaining--;
             
-            if (Player.movementRemaining < 24){
+            if (Player.movementRemaining < 20){
                 Player.animation_step = 2;
             }
-            if (Player.movementRemaining < 16){
+            if (Player.movementRemaining < 12){
                 Player.animation_step = 3;
             }
 
@@ -517,10 +542,10 @@ VOID process_player_input(void){
             Player.worldPosX++;
             Player.movementRemaining--;
             
-            if (Player.movementRemaining < 24){
+            if (Player.movementRemaining < 20){
                 Player.animation_step = 2;
             }
-            if (Player.movementRemaining < 16){
+            if (Player.movementRemaining < 12){
                 Player.animation_step = 3;
             }
 
@@ -530,10 +555,10 @@ VOID process_player_input(void){
             //Player.movementRemaining = Player.movementRemaining - 2;
             Player.movementRemaining--;
             
-            if (Player.movementRemaining < 24){
+            if (Player.movementRemaining < 20){
                 Player.animation_step = 2;
             }
-            if (Player.movementRemaining < 16){
+            if (Player.movementRemaining < 12){
                 Player.animation_step = 3;
             }
             break;
@@ -558,7 +583,7 @@ VOID process_player_input(void){
 
 VOID render_game_frames(void){
 
-    LoadBackgroundToScreen(Room_Sprite);
+    LoadBackgroundToScreen(Background);
 
     //LoadBitFontToScreen(Font,"Hello World!",24,24);
     
@@ -566,7 +591,8 @@ VOID render_game_frames(void){
     
     //LoadBitMapToScreen(Player.sprite[Player.direction][Player.animation_step],Player.worldPosX,Player.worldPosY,8,-16);
     
-    LoadBitMapToScreen(Player.sprite[Player.direction][Player.animation_step],400,240,8,-16);
+    LoadBitMapToScreen(Player.sprite[Player.direction][Player.animation_step],400,240,0,-3);
+    //LoadBitMapToScreen(Background,25,25,0,0);
     
     //LoadBitMapToScreen(npc.sprite[0][0],npc.worldPosX,npc.worldPosY,8,0);
     
@@ -581,7 +607,7 @@ VOID render_game_frames(void){
 
     char fpsBuffer[64] = {0};
     
-    sprintf(fpsBuffer, "Cooked FPS: %.01f Raw FPS: %.01f Screen Position: %d:%d,",gPreformance_Data.CookFPS,gPreformance_Data.RawFPS,Player.worldPosX, Player.worldPosY);
+    sprintf(fpsBuffer, "Cooked FPS: %.01f Raw FPS: %.01f Screen Position: %d:%d, Tile: %d",gPreformance_Data.CookFPS,gPreformance_Data.RawFPS,Player.worldPosX, Player.worldPosY,GetPlayerTile(&Player));
 
     SetTextColor(deviceContext, RGB(255, 255, 255));  
     
@@ -597,6 +623,8 @@ VOID render_game_frames(void){
    
 
 }
+
+
 
 VOID initBitMap(void){
      
@@ -693,6 +721,7 @@ DWORD Load32BppBitmapFromFile(LPCSTR fileName,GAMEBITMAP* GameBitMap){
 
 
 DWORD InitPlayer(VOID){
+    
     DWORD Error = ERROR_SUCCESS;
     Player.worldPosX=0;
     Player.worldPosY=0;
@@ -791,6 +820,144 @@ DWORD InitNPC(VOID){
     }
     return Error;
 }
+
+VOID InitTiles(GAMEBITMAP tile_spritesheet){
+   
+    int32_t tile_size = 25;
+    int32_t Starting_Address = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (tile_size*4 - tile_size*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*19);
+    int32_t bytesPerTile = 4 * tile_size * tile_size;
+    
+    for (int i = 0; i<1600;i++){
+        GAMEBITMAP tileBitMap = {0};
+        tileBitMap.bitMapInfo.bmiHeader.biBitCount = GAME_BPP;
+        tileBitMap.bitMapInfo.bmiHeader.biWidth = 25;
+        tileBitMap.bitMapInfo.bmiHeader.biHeight = 25;
+        tileBitMap.bitMapInfo.bmiHeader.biCompression = 0;
+        tileBitMap.bitMapInfo.bmiHeader.biPlanes = 1;
+        tileBitMap.memory = HeapAlloc(GetProcessHeap(),HEAP_ZERO_MEMORY,bytesPerTile);
+
+        int32_t Tile_Sprite_Offset = 0;
+        int32_t Tile_Memory_Offset = 0;
+        PIXEL TilePixels = {0};
+        TILE Tile;
+    
+    if (i > 600 && i < 1000){
+        Starting_Address = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (tile_size*12 - tile_size*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*19);
+        Tile.type=0;
+    }
+    else{
+        Starting_Address = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (tile_size*4 - tile_size*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*19);
+        Tile.type=1;
+    }
+    
+
+    for(int32_t PixelY = 0; PixelY < 25; PixelY++){
+            
+            for(int32_t PixelX = 0; PixelX < 25; PixelX++){
+            
+            Tile_Sprite_Offset = (Starting_Address + PixelX) - (tile_spritesheet.bitMapInfo.bmiHeader.biWidth*PixelY);
+            Tile_Memory_Offset = ((tileBitMap.bitMapInfo.bmiHeader.biHeight*tileBitMap.bitMapInfo.bmiHeader.biWidth) - tileBitMap.bitMapInfo.bmiHeader.biWidth) + PixelX - (tileBitMap.bitMapInfo.bmiHeader.biWidth* PixelY);
+            
+            memcpy(&TilePixels,(PIXEL*)tile_spritesheet.memory + Tile_Sprite_Offset,sizeof(PIXEL));
+            memcpy((PIXEL*)tileBitMap.memory + Tile_Memory_Offset,&TilePixels,sizeof(PIXEL));
+        }
+        
+    }
+
+    
+    Tile.tile_sprite = tileBitMap;
+    Tiles[i] = Tile;
+    
+    }
+}
+
+
+int32_t GetPlayerTile(PLAYER *player){
+    int playerTileX = (player->worldPosX + 500) / 25; 
+    int playerTileY = (player->worldPosY + 500) / 25; 
+    int tileIndex = playerTileY * 40 + playerTileX + 40;
+    
+    //return tileIndex;
+    return Tiles[tileIndex].type;
+
+}
+int32_t GetNextPlayerTile(PLAYER *player,int32_t Direction){
+        int playerTileX = (player->worldPosX + 500) / 25; 
+        int playerTileY = (player->worldPosY + 500) / 25; 
+        int tileIndex = playerTileY * 40 + playerTileX + 40;
+
+        switch (Direction)
+        {
+        case 0:
+            tileIndex += 40;
+
+            break;
+        case 1:
+            tileIndex += 1;
+            break;
+
+        case 2:
+            tileIndex -= 1;
+            break;
+        case 3:
+            tileIndex -= 40;
+            break;
+        
+        default:
+            /* No dir */
+            break;
+        }
+    
+        
+        return Tiles[tileIndex].type;
+}
+
+VOID BuiltTileMap(TILE* Tile_Array,GAMEBITMAP* backgroundBitMap){
+
+    
+    backgroundBitMap->bitMapInfo.bmiHeader.biBitCount = GAME_BPP;
+    backgroundBitMap->bitMapInfo.bmiHeader.biWidth = 1000;
+    backgroundBitMap->bitMapInfo.bmiHeader.biHeight = 1000;
+    backgroundBitMap->bitMapInfo.bmiHeader.biCompression = 0;
+    backgroundBitMap->bitMapInfo.bmiHeader.biPlanes = 1;
+    int32_t bytesNeeded = 4 * backgroundBitMap->bitMapInfo.bmiHeader.biWidth * backgroundBitMap->bitMapInfo.bmiHeader.biHeight;
+    backgroundBitMap->memory = HeapAlloc(GetProcessHeap(),HEAP_ZERO_MEMORY,bytesNeeded);
+
+    int32_t Starting_Address = Tile_Array[0].tile_sprite.bitMapInfo.bmiHeader.biWidth * Tile_Array[0].tile_sprite.bitMapInfo.bmiHeader.biHeight - Tile_Array[0].tile_sprite.bitMapInfo.bmiHeader.biWidth;
+    int32_t Tile_Sprite_Offset = 0;
+    int32_t BackgroundBitMapOffset = 0;
+    PIXEL BackgroundPixels = {0};
+
+    int32_t tileIndex = 0;
+    for (int y = 0; y < 40; y++){
+        
+        for (int x = 0; x < 40; x++){
+
+        GAMEBITMAP TileBitMap = Tile_Array[tileIndex].tile_sprite;
+        tileIndex +=1;
+        
+        for(int32_t PixelY = 0; PixelY < 25; PixelY++){
+
+            for(int32_t PixelX = 0; PixelX < 25; PixelX++){
+
+                Tile_Sprite_Offset = (Starting_Address + PixelX) - (TileBitMap.bitMapInfo.bmiHeader.biWidth*PixelY);
+                
+                BackgroundBitMapOffset = (x*25) + ((backgroundBitMap->bitMapInfo.bmiHeader.biHeight*backgroundBitMap->bitMapInfo.bmiHeader.biWidth) - backgroundBitMap->bitMapInfo.bmiHeader.biWidth) + PixelX - (backgroundBitMap->bitMapInfo.bmiHeader.biWidth* PixelY) - (y*backgroundBitMap->bitMapInfo.bmiHeader.biWidth*25);
+                
+                memcpy(&BackgroundPixels,(PIXEL*)TileBitMap.memory + Tile_Sprite_Offset,sizeof(PIXEL));
+                
+                memcpy((PIXEL*)backgroundBitMap->memory + BackgroundBitMapOffset,&BackgroundPixels,sizeof(PIXEL));
+                }
+            }
+        }
+    }
+
+        
+    
+
+
+}
+
 
 /*
 VOID InitBackgroundFromTileSprite(GAMEBITMAP Tile_Sprite_Map){

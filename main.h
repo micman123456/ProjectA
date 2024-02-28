@@ -78,6 +78,10 @@ typedef struct PLAYER{
     
 }PLAYER;
 
+typedef struct TILE{
+    uint32_t type;
+    GAMEBITMAP tile_sprite;
+}TILE;
 
 typedef struct NPC{
     GAMEBITMAP sprite[5][6];
@@ -95,12 +99,19 @@ typedef struct NPC{
 DWORD Load32BppBitmapFromFile(LPCSTR,GAMEBITMAP*);
 DWORD InitPlayer(VOID);
 DWORD InitNPC(VOID);
+int32_t GetPlayerTile(PLAYER*); 
+int32_t GetNextPlayerTile(PLAYER*,int32_t Direction); 
+VOID InitTiles(GAMEBITMAP);  
+
+
+//VOID LoadTilesToScreen(TILE*);
+VOID BuiltTileMap(TILE*,GAMEBITMAP*);
+
 VOID InitBackgroundFromTileSprite(GAMEBITMAP);
-
 VOID LoadBackgroundToScreen(GAMEBITMAP);
-
 VOID LoadBitFontToScreen(GAMEBITMAP,char*, int16_t, int16_t);
 VOID LoadBitMapToScreen(GAMEBITMAP, int16_t, int16_t,int16_t,int16_t);
+
 DWORD LoadSpriteFromSpriteSheet(GAMEBITMAP,GAMEBITMAP*,int16_t, int16_t,int16_t,int16_t);
 
 
