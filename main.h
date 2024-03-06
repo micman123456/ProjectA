@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <algorithm>
+#include <random>
 
 //256 x 192
 
@@ -19,6 +20,26 @@
 #define DIR_LEFT 1
 #define DIR_RIGHT 2
 #define DIR_UP 3
+
+#define MAP_WIDTH 2000
+#define MAP_HEIGHT 2000
+#define TILE_SIZE 25
+
+#define NUMB_TILES (MAP_WIDTH * MAP_HEIGHT)/(TILE_SIZE * TILE_SIZE)
+#define CENTER_TILE_INDEX 3200
+// Sqrt of NUMB_TILES
+#define NUMB_TILES_PER_ROW 80
+#define STARTING_TILE 3240
+
+/* Tile Types */
+#define NUMB_TILE_TYPES 6
+#define FLOOR1 0
+#define FLOOR2 1
+#define FLOOR3 2
+#define WALL1 3
+#define WALL2 4
+#define WALL3 5
+
 
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
@@ -51,6 +72,12 @@ typedef struct PIXEL32 {
     uint8_t alpha;
 } PIXEL;
 
+typedef struct TILE{
+    uint32_t type;
+    GAMEBITMAP tile_sprite;
+}TILE;
+
+
 typedef struct PREFORMENCE_DATA{
     uint64_t TotalFramesRendered;
     float RawFPS;
@@ -74,14 +101,13 @@ typedef struct PLAYER{
     uint32_t animation_step;
     uint32_t idleFrameCount;
     GAMEBITMAP sprite_sheet[5];
+    TILE StandingTile;
+    uint32_t StandingTile_Index;
    
     
 }PLAYER;
 
-typedef struct TILE{
-    uint32_t type;
-    GAMEBITMAP tile_sprite;
-}TILE;
+
 
 typedef struct NPC{
     GAMEBITMAP sprite[5][6];
@@ -96,13 +122,14 @@ typedef struct NPC{
     
 }NPC;
 
+
 DWORD Load32BppBitmapFromFile(LPCSTR,GAMEBITMAP*);
 DWORD InitPlayer(VOID);
 DWORD InitNPC(VOID);
 int32_t GetPlayerTile(PLAYER*); 
 int32_t GetNextPlayerTile(PLAYER*,int32_t Direction); 
 VOID InitTiles(GAMEBITMAP);  
-
+VOID GenerateRoom(int32_t);
 
 //VOID LoadTilesToScreen(TILE*);
 VOID BuiltTileMap(TILE*,GAMEBITMAP*);
