@@ -94,8 +94,10 @@ typedef struct PREFORMENCE_DATA{
 
 typedef struct PLAYER{
     GAMEBITMAP sprite[5][6];
-    uint32_t worldPosX;
-    uint32_t worldPosY;
+    int32_t worldPosX;
+    int32_t worldPosY;
+    int32_t ScreenPosX;
+    int32_t ScreenPosY;
     uint32_t movementRemaining;
     uint32_t direction;
     uint32_t animation_step;
@@ -138,6 +140,9 @@ VOID InitBackgroundFromTileSprite(GAMEBITMAP);
 VOID LoadBackgroundToScreen(GAMEBITMAP);
 VOID LoadBitFontToScreen(GAMEBITMAP,char*, int16_t, int16_t);
 VOID LoadBitMapToScreen(GAMEBITMAP, int16_t, int16_t,int16_t,int16_t);
+
+void updatePlayerPosition(int32_t&,int,int,int,int);
+void updateScreenPosition(int screenLimit, bool increment, bool horizontal);
 
 DWORD LoadSpriteFromSpriteSheet(GAMEBITMAP,GAMEBITMAP*,int16_t, int16_t,int16_t,int16_t);
 
