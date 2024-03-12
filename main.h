@@ -142,7 +142,7 @@ VOID LoadBitFontToScreen(GAMEBITMAP,char*, int16_t, int16_t);
 VOID LoadBitMapToScreen(GAMEBITMAP, int16_t, int16_t,int16_t,int16_t);
 
 void updatePlayerPosition(int32_t&,int,int,int,int);
-void updateScreenPosition(int screenLimit, bool increment, bool horizontal);
+
 
 DWORD LoadSpriteFromSpriteSheet(GAMEBITMAP,GAMEBITMAP*,int16_t, int16_t,int16_t,int16_t);
 
