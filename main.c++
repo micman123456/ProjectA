@@ -6,6 +6,7 @@
 
 
 #include "main.h"
+#include "generate.c++"
 #include <cstdint>
 
 
@@ -84,7 +85,7 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     }
 
     InitTiles(Tile_Sprite_Sheet);
-    //GenerateRoom(10);
+    GenerateRoom(20,7,15, Background_Tiles,Tile_Type_Array);
     BuiltTileMap(Background_Tiles,&Background);
 
 
@@ -224,8 +225,7 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             elapsedMsPerFrameAccumCooked = 0;
             elapsedMsPerFrameAccumRaw = 0;
 
-            //printf("%d\n",Player.StandingTile_Index);
-            printf("%d\n",Player.worldPosY);
+
         }
         
        
@@ -364,12 +364,18 @@ VOID process_player_input(void){
     int16_t W_KeyDown = GetAsyncKeyState('W');
     int16_t S_KeyDown = GetAsyncKeyState('S');
     int16_t Ctr_KeyDown = GetAsyncKeyState(VK_CONTROL);
+    int16_t C_KeyDown = GetAsyncKeyState('C');
+
+   
+
     
     static int16_t d_KeyWasDown;
     static int16_t a_KeyWasDown;
     static int16_t s_KeyWasDown;
     static int16_t w_KeyWasDown;
+    static int16_t c_KeyWasDown;
 
+    Player.noClip = (C_KeyDown || c_KeyWasDown ) ? 1 - Player.noClip : Player.noClip;
    
    if (Player.movementRemaining == 0){
     if (Player.idleFrameCount < 30){
@@ -388,7 +394,7 @@ VOID process_player_input(void){
     
     if (A_KeyDown){
         Player.direction = DIR_LEFT;
-         if(GetNextPlayerTile(&Player,1) == 0){
+         if(GetNextPlayerTile(&Player,1) == 0 || Player.noClip == 1){
             if(!Ctr_KeyDown){
                 Player.animation_step = 1;
                 Player.movementRemaining = 25;
@@ -400,7 +406,7 @@ VOID process_player_input(void){
     }
     else if (D_KeyDown){
          Player.direction = DIR_RIGHT;
-         if(GetNextPlayerTile(&Player,2) == 0){
+         if(GetNextPlayerTile(&Player,2) == 0 || Player.noClip == 1){
             if(!Ctr_KeyDown){
                 Player.animation_step = 1;
                 Player.movementRemaining = 25;
@@ -412,7 +418,7 @@ VOID process_player_input(void){
     }
     else if (W_KeyDown){
          Player.direction = DIR_UP;
-         if(GetNextPlayerTile(&Player,3) == 0){
+         if(GetNextPlayerTile(&Player,3) == 0 || Player.noClip == 1){
         if(!Ctr_KeyDown){
             Player.animation_step = 1;
             Player.movementRemaining = 25;
@@ -425,7 +431,7 @@ VOID process_player_input(void){
     }
     else if (S_KeyDown){
         Player.direction = DIR_DOWN;
-        if(GetNextPlayerTile(&Player,0) == 0){
+        if(GetNextPlayerTile(&Player,0) == 0 || Player.noClip == 1){
             if(!Ctr_KeyDown){
             Player.animation_step = 1;
             Player.movementRemaining = 25;
@@ -615,6 +621,7 @@ VOID process_player_input(void){
     w_KeyWasDown = W_KeyDown;
     a_KeyWasDown = A_KeyDown;
     s_KeyWasDown = S_KeyDown;
+    c_KeyWasDown = C_KeyDown;
 
 }
 
@@ -680,7 +687,7 @@ void updatePlayerPosition(int32_t& playerPos, int lowerBound, int upperBound, in
 
 VOID render_game_frames(void){
 
-    LoadBackgroundToScreen(Background);
+    
 
     //LoadBitFontToScreen(Font,"Player",390,280);
     
@@ -689,7 +696,7 @@ VOID render_game_frames(void){
     //LoadBitMapToScreen(Player.sprite[Player.direction][Player.animation_step],Player.worldPosX,Player.worldPosY,8,-16);
     
     
-    LoadBitMapToScreen(Player.sprite[Player.direction][Player.animation_step],Player.ScreenPosX,Player.ScreenPosY,16,-4);
+    
     //LoadBitMapToScreen(Background,25,25,0,0);
     
     //LoadBitMapToScreen(npc.sprite[0][0],npc.worldPosX,npc.worldPosY,8,0);
@@ -703,9 +710,12 @@ VOID render_game_frames(void){
 
     StretchDIBits(deviceContext,0,0,gMonitorWidth,gMonitorHeight,0,0,GAME_WIDTH,GAME_HEIGHT,DrawingSurface.memory,&DrawingSurface.bitMapInfo,DIB_RGB_COLORS,SRCCOPY);
 
+    LoadBackgroundToScreen(Background);
+    LoadBitMapToScreen(Player.sprite[Player.direction][Player.animation_step],Player.ScreenPosX,Player.ScreenPosY,16,-4);
+
     char fpsBuffer[64] = {0};
     
-    sprintf(fpsBuffer, "Cooked FPS: %.01f Raw FPS: %.01f Screen Position: %d:%d, Tile: %d",gPreformance_Data.CookFPS,gPreformance_Data.RawFPS,Player.worldPosX, Player.worldPosY,GetPlayerTile(&Player));
+    sprintf(fpsBuffer, "Cooked FPS: %.01f Raw FPS: %.01f Screen Position: %d:%d",gPreformance_Data.CookFPS,gPreformance_Data.RawFPS,Player.worldPosX, Player.worldPosY);
 
     SetTextColor(deviceContext, RGB(255, 255, 255));  
     
@@ -831,6 +841,7 @@ DWORD InitPlayer(VOID){
     Player.idleFrameCount = 0;
     Player.StandingTile = Background_Tiles[STARTING_TILE];
     Player.StandingTile_Index = STARTING_TILE;
+    Player.noClip = 0;
     
 
     
@@ -938,9 +949,16 @@ VOID InitTiles(GAMEBITMAP tile_spritesheet){
    Tile_Starting_Points[FLOOR2] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*16 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*22);
    Tile_Starting_Points[FLOOR3] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*12 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*19);
    Tile_Starting_Points[WALL1] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*4 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*4);
-   Tile_Starting_Points[WALL2] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*12 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*19);
-   Tile_Starting_Points[WALL3] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*12 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*19);
-
+   Tile_Starting_Points[WALL2] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*4 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*1);
+   Tile_Starting_Points[WALL3] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*4 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*2);
+   Tile_Starting_Points[WALL4] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*3 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*15);
+   Tile_Starting_Points[WALL5] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*4 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*15);
+   Tile_Starting_Points[WALL6] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*4 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*0);
+   Tile_Starting_Points[WALL7] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*3 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*16);
+   Tile_Starting_Points[WALL8] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*4 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*16);
+   
+   Tile_Starting_Points[WALL9] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*3 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*1);
+   Tile_Starting_Points[WALL10] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*5 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*1);
 
    for (int i = 0; i < NUMB_TILE_TYPES; i++){
     Starting_Address = Tile_Starting_Points[i];
@@ -979,15 +997,15 @@ VOID InitTiles(GAMEBITMAP tile_spritesheet){
    for (int i = 0; i<NUMB_TILES;i++){
 
     if (i%NUMB_TILES_PER_ROW==(NUMB_TILES_PER_ROW-1) || i%NUMB_TILES_PER_ROW==1 || i%NUMB_TILES_PER_ROW==0 || i%NUMB_TILES_PER_ROW==2){
-        Background_Tiles[i].tile_sprite = Tile_Type_Array[WALL1].tile_sprite; 
-        Background_Tiles[i].type = Tile_Type_Array[WALL1].type;     
+        Background_Tiles[i].tile_sprite = Tile_Type_Array[WALL2].tile_sprite; 
+        Background_Tiles[i].type = Tile_Type_Array[WALL2].type;     
     }
     else if (i < NUMB_TILES_PER_ROW*2 || i >NUMB_TILES -(NUMB_TILES_PER_ROW*2)){
-        Background_Tiles[i].tile_sprite = Tile_Type_Array[WALL1].tile_sprite; 
-        Background_Tiles[i].type = Tile_Type_Array[WALL1].type;     
+        Background_Tiles[i].tile_sprite = Tile_Type_Array[WALL2].tile_sprite; 
+        Background_Tiles[i].type = Tile_Type_Array[WALL2].type;     
     }
     else{
-        Background_Tiles[i] = Tile_Type_Array[FLOOR1];
+        Background_Tiles[i] = Tile_Type_Array[WALL2];
     }
     
 
@@ -995,75 +1013,6 @@ VOID InitTiles(GAMEBITMAP tile_spritesheet){
 
 }
 
-
-/* TODO:
-
-    - Make Tile_Type_Array global - DONE 
-    - Use Tile_Type_Array to make changes to the background tile bitmap "on the fly" WIP
-    - Change name of Tiles to Background_Tiles DONE 
-    - Seperate Init Tile_Type_Array and Init Background_Tiles (Currently known as just Tiles)
-       Both are currently initalized in the same function and I would like to change that.
-    - Finish GenerateRoom (Alpha version)
-
-
-*/
-
-VOID GenerateRoom(int32_t NumberOfRooms){
-
-    int32_t Room_Size,Room_Location,Row_Index, Room_Size_Edge;
-
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_int_distribution<int> distribution(5, 15);
-    std::uniform_int_distribution<int> distribution_Tile(0, NUMB_TILES);
-    
-    for (int i = 0; i < NumberOfRooms+1; i++){
-
-        
-        // Creates a 5x5 Room around Player
-        if (i == 0){
-            Room_Size = 5;
-            Room_Location = STARTING_TILE - 2 - NUMB_TILES_PER_ROW*2;
-        }
-
-
-        else{
-            Room_Size = distribution(gen);
-            Room_Location = distribution_Tile(gen);
-        }
-        
-        
-
-        Row_Index = Room_Location / NUMB_TILES_PER_ROW;
-        Room_Size_Edge = (Room_Location+Room_Size+1) / NUMB_TILES_PER_ROW;
-
-        while ((Room_Location + (NUMB_TILES_PER_ROW*Room_Size + Room_Size)) >= NUMB_TILES || Room_Size_Edge != Row_Index ){
-            
-            Room_Size = distribution(gen);
-            Room_Location = distribution_Tile(gen);
-            
-            Row_Index = Room_Location / NUMB_TILES_PER_ROW;
-            Room_Size_Edge = (Room_Location+Room_Size) / NUMB_TILES_PER_ROW;
-
-        }
-    
-    
-    int32_t tile_index; 
-
-    for(int y = 0; y < Room_Size; y++){
-        for (int x = 0; x < Room_Size; x++){
-            tile_index = Room_Location + y*NUMB_TILES_PER_ROW + x;
-                       
-           Background_Tiles[tile_index] = Tile_Type_Array[FLOOR1];
-        }
-        
-    }
-    
-
-
-
-    }
-}
 
 
 int32_t GetPlayerTile(PLAYER *player){

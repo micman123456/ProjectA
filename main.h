@@ -15,7 +15,7 @@
 #define GAME_HEIGHT 240*2
 #define GAME_BPP 32
 #define GAME_DRAWING_AREA_MEMORY_SIZE (GAME_WIDTH * GAME_HEIGHT * (GAME_BPP / 8))
-#define DESIRED_MIRCOSECONDS 16667
+#define DESIRED_MIRCOSECONDS 16667/2
 #define DIR_DOWN 0
 #define DIR_LEFT 1
 #define DIR_RIGHT 2
@@ -32,15 +32,26 @@
 #define STARTING_TILE 3240
 
 /* Tile Types */
-#define NUMB_TILE_TYPES 6
+
+/*
+TODO:
+    - RENAME THIS SHIT SO THE NAMES COORESSPOND WITH THE SPRITES
+    
+*/
+#define NUMB_TILE_TYPES 13
 #define FLOOR1 0
 #define FLOOR2 1
 #define FLOOR3 2
 #define WALL1 3
 #define WALL2 4
 #define WALL3 5
-
-
+#define WALL4 6
+#define WALL5 7
+#define WALL6 8
+#define WALL7 9
+#define WALL8 10
+#define WALL9 11
+#define WALL10 12
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 DWORD Create_Main_Window(HINSTANCE hInstance);
@@ -105,6 +116,8 @@ typedef struct PLAYER{
     GAMEBITMAP sprite_sheet[5];
     TILE StandingTile;
     uint32_t StandingTile_Index;
+    uint8_t noClip;
+    
    
     
 }PLAYER;
@@ -124,6 +137,13 @@ typedef struct NPC{
     
 }NPC;
 
+typedef struct ROOM{
+    uint32_t Starting_Tile;
+    uint32_t Width;
+    uint32_t Height;
+
+}ROOM;
+
 
 DWORD Load32BppBitmapFromFile(LPCSTR,GAMEBITMAP*);
 DWORD InitPlayer(VOID);
@@ -131,10 +151,12 @@ DWORD InitNPC(VOID);
 int32_t GetPlayerTile(PLAYER*); 
 int32_t GetNextPlayerTile(PLAYER*,int32_t Direction); 
 VOID InitTiles(GAMEBITMAP);  
-VOID GenerateRoom(int32_t);
+VOID GenerateRoom(int32_t,int32_t,int32_t, TILE*, TILE*);
+int32_t DrawRoomToMap(ROOM,TILE*, TILE*, int32_t*, int32_t);
 
 //VOID LoadTilesToScreen(TILE*);
 VOID BuiltTileMap(TILE*,GAMEBITMAP*);
+BOOL IsRoomValid(ROOM, int32_t*,int32_t);
 
 VOID InitBackgroundFromTileSprite(GAMEBITMAP);
 VOID LoadBackgroundToScreen(GAMEBITMAP);
