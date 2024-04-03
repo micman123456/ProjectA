@@ -41,3 +41,5 @@ License
 ProjectA is licensed under the MIT License. Feel free to fork, modify, and share the game with others.
 
 Enjoy your retro dungeon-crawling adventure in ProjectA.
+
+![image](https://github.com/micman123456/ProjectA/assets/77693187/1e9f7384-2744-4108-9715-31fbaf388afc)
