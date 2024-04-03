@@ -72,21 +72,27 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     
     
 
-    
-        
+
     if(Load32BppBitmapFromFile("assets\\tiles\\Tiles-Amp-Plains.bmp",&Tile_Sprite_Sheet) != ERROR_SUCCESS){
         MessageBoxA(NULL, "Unable to load font sheet into memory", "Error", MB_ICONEXCLAMATION | MB_OK);
         result = GetLastError();
         return result;
     }
 
+    // if(Load32BppBitmapFromFile("assets\\tiles\\Tiles-Amp-Plains.bmp",&Tile_Sprite_Sheet) != ERROR_SUCCESS){
+    //     MessageBoxA(NULL, "Unable to load font sheet into memory", "Error", MB_ICONEXCLAMATION | MB_OK);
+    //     result = GetLastError();
+    //     return result;
+    // }
+
     InitTiles(Tile_Sprite_Sheet);
     // Generation using Attempt method
     
     //GenerateCorridors(25,Background_Tiles,Tile_Type_Array);
     
-    //ProceduralGenerator(1000,7,12,Background_Tiles,Tile_Type_Array,10);
-    GenerateRoomsAttempts(1000,7,12, Background_Tiles,Tile_Type_Array);
+    ProceduralGenerator(1000,10,18,Background_Tiles,Tile_Type_Array,10);
+    
+    //GenerateRoomsAttempts(1000,MIN_ROOM_SIZE,MAX_ROOM_SIZE, Background_Tiles,Tile_Type_Array);
 
     //  std::future<void> future = std::async(std::launch::async, GenerateConnectingPaths, 2, Background_Tiles, Tile_Type_Array);
     //  std::chrono::seconds timeout(5);
@@ -99,9 +105,13 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     //     // Handle successful execution...
     // }
 
-    GenerateConnectingPaths(10,Background_Tiles,Tile_Type_Array);
-    DrawTileDetails(Background_Tiles,Tile_Type_Array);
-    DrawTileDetails(Background_Tiles,Tile_Type_Array);
+    //GenerateConnectingPaths(10,Background_Tiles,Tile_Type_Array);
+    //DrawTileDetails(Background_Tiles,Tile_Type_Array);
+    //DrawTileDetails(Background_Tiles,Tile_Type_Array);
+    //DrawTileDetails(Background_Tiles,Tile_Type_Array);
+    //DrawTileDetails(Background_Tiles,Tile_Type_Array);
+    //DrawTileDetails(Background_Tiles,Tile_Type_Array);
+    
     //GenerateCorridorsNoWalls(50,Background_Tiles,Tile_Type_Array);
     // Generation using Set Number method
     //GenerateRoomsSetNumber(30,7,12, Background_Tiles,Tile_Type_Array);
@@ -244,7 +254,6 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             elapsedMsPerFrameAccumCooked = 0;
             elapsedMsPerFrameAccumRaw = 0;
 
-
         }
         
        
@@ -278,6 +287,19 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         }
         return 0;
     
+    case STAIRS:
+        {
+            ShowCursor(TRUE);
+            if (MessageBox(hwnd, L"Regenerate Room?", L"Project", MB_OKCANCEL) == IDOK)
+            {
+                HandleStairs(Player);
+                teleportPlayer(Player);
+            }
+            // Else: User canceled. Do nothing.
+            ShowCursor(FALSE);
+           
+        }
+        return 0;
     
     case WM_CLOSE:
     ShowCursor(TRUE);
@@ -385,7 +407,8 @@ VOID process_player_input(void){
     int16_t S_KeyDown = GetAsyncKeyState('S');
     int16_t Ctr_KeyDown = GetAsyncKeyState(VK_CONTROL);
     int16_t C_KeyDown = GetAsyncKeyState('C');
-
+    int16_t T_KeyDown = GetAsyncKeyState('T');
+    int16_t R_KeyDown = GetAsyncKeyState('R');
    
 
     
@@ -396,8 +419,20 @@ VOID process_player_input(void){
     static int16_t c_KeyWasDown;
 
     Player.noClip = (C_KeyDown) ? 1 - Player.noClip : Player.noClip;
+
+    if(T_KeyDown){
+        teleportPlayer(Player);
+    }
+    if(R_KeyDown){
+        HandleStairs(Player);
+    }
+
    
    if (Player.movementRemaining == 0){
+    if(Player.StandingTile.type == STAIRS){
+        SendMessageA(gGameWindow,STAIRS,0,0);
+    }
+
     if (Player.idleFrameCount < 30){
         Player.animation_step = 0;
         Player.idleFrameCount++;
@@ -414,7 +449,7 @@ VOID process_player_input(void){
     
     if (A_KeyDown){
         Player.direction = DIR_LEFT;
-         if(GetNextPlayerTile(&Player,1) == 0 || Player.noClip == 1){
+         if(GetNextPlayerTile(&Player,1) == 0 || GetNextPlayerTile(&Player,1) == STAIRS|| Player.noClip == 1){
             if(!Ctr_KeyDown){
                 Player.animation_step = 1;
                 Player.movementRemaining = 25;
@@ -426,7 +461,7 @@ VOID process_player_input(void){
     }
     else if (D_KeyDown){
          Player.direction = DIR_RIGHT;
-         if(GetNextPlayerTile(&Player,2) == 0 || Player.noClip == 1){
+         if(GetNextPlayerTile(&Player,2) == 0 || GetNextPlayerTile(&Player,2) == STAIRS|| Player.noClip == 1){
             if(!Ctr_KeyDown){
                 Player.animation_step = 1;
                 Player.movementRemaining = 25;
@@ -438,8 +473,9 @@ VOID process_player_input(void){
     }
     else if (W_KeyDown){
          Player.direction = DIR_UP;
-         if(GetNextPlayerTile(&Player,3) == 0 || Player.noClip == 1){
+         if(GetNextPlayerTile(&Player,3) == 0 || GetNextPlayerTile(&Player,3) == STAIRS|| Player.noClip == 1){
         if(!Ctr_KeyDown){
+        
             Player.animation_step = 1;
             Player.movementRemaining = 25;
             Player.idleFrameCount = 0;
@@ -451,7 +487,7 @@ VOID process_player_input(void){
     }
     else if (S_KeyDown){
         Player.direction = DIR_DOWN;
-        if(GetNextPlayerTile(&Player,0) == 0 || Player.noClip == 1){
+        if(GetNextPlayerTile(&Player,0) == 0 || GetNextPlayerTile(&Player,0) == STAIRS || Player.noClip == 1){
             if(!Ctr_KeyDown){
             Player.animation_step = 1;
             Player.movementRemaining = 25;
@@ -467,154 +503,20 @@ VOID process_player_input(void){
 
 
    }
-    /*
-    else{
-        switch (Player.direction)
-        {
-        case DIR_DOWN:
-
-            if (Player.worldPosY <= TILE_SIZE*-31){
-                Player.ScreenPosY++;
-            }
-            else if (Player.worldPosY >= TILE_SIZE*28){
-
-                if (Player.ScreenPosY < 240){
-                    Player.ScreenPosY++;
-                }
-                else{
-                    Player.worldPosY--;
-                }
-            }
-
-            
-            else{
-                Player.worldPosY--;
-            }
-            
-            //Player.movementRemaining = Player.movementRemaining - 2;
-            Player.movementRemaining--;
-            
-            
-            if (Player.movementRemaining < 20){
-                Player.animation_step = 2;
-            }
-            if (Player.movementRemaining < 12){
-                Player.animation_step = 3;
-            }
-        
-            break;
-        case DIR_LEFT:
-        
-            if (Player.worldPosX <= TILE_SIZE*-24){
-                Player.ScreenPosX--;
-            }
-            else if (Player.worldPosX >= TILE_SIZE*24){
-
-                if (Player.ScreenPosX > 400){
-                    Player.ScreenPosX--;
-                }
-                else{
-                    Player.worldPosX--;
-                }
-            
-            }
-
-            else{
-                Player.worldPosX--;
-            }
-
-
-            //Player.worldPosX--;
-            //Player.movementRemaining = Player.movementRemaining - 2;
-            Player.movementRemaining--;
-            
-            if (Player.movementRemaining < 20){
-                Player.animation_step = 2;
-            }
-            if (Player.movementRemaining < 12){
-                Player.animation_step = 3;
-            }
-
-            
-            break;
-        case DIR_RIGHT:
-            if (Player.worldPosX >= TILE_SIZE*24){
-                Player.ScreenPosX++;
-            }
-            else if (Player.worldPosX <= TILE_SIZE*-24){
-
-                if (Player.ScreenPosX < 400){
-                    Player.ScreenPosX++;
-                }
-                else{
-                    Player.worldPosX++;
-                }
-
-            }
-
-            else{
-                Player.worldPosX++;
-            }
-            Player.movementRemaining--;
-            
-            
-            if (Player.movementRemaining < 20){
-                Player.animation_step = 2;
-            }
-            if (Player.movementRemaining < 12){
-                Player.animation_step = 3;
-            }
-
-            break;
-        case DIR_UP:
-
-            if (Player.worldPosY >= TILE_SIZE*28){
-                Player.ScreenPosY--;
-            }
-
-            else if (Player.worldPosY <= TILE_SIZE*-31){
-
-                if (Player.ScreenPosY > 240){
-                    Player.ScreenPosY--;
-                }
-                else{
-                    Player.worldPosY++;
-                }
-
-            }
-            else{
-                Player.worldPosY++;
-            }
-
-
-            Player.movementRemaining--;
-            
-            if (Player.movementRemaining < 20){
-                Player.animation_step = 2;
-            }
-            if (Player.movementRemaining < 12){
-                Player.animation_step = 3;
-            }
-            break;
-        default:
-            break;
-        }
-        
-    }
-    */
+    
    else {
     switch (Player.direction) {
         case DIR_DOWN:
-            updatePlayerPosition(Player.worldPosY, TILE_SIZE*-31, TILE_SIZE*28, 240,DIR_DOWN);
+            updatePlayerPosition(Player.worldPosY, TILE_SIZE*-34, TILE_SIZE*34, 100,DIR_DOWN);
             break;
         case DIR_LEFT:
-            updatePlayerPosition(Player.worldPosX, TILE_SIZE*-24, TILE_SIZE*24, 400, DIR_LEFT);
+            updatePlayerPosition(Player.worldPosX, TILE_SIZE*-32, TILE_SIZE*32, 200, DIR_LEFT);
             break;
         case DIR_RIGHT:
-            updatePlayerPosition(Player.worldPosX, TILE_SIZE*-24, TILE_SIZE*24, 400,DIR_RIGHT);
+            updatePlayerPosition(Player.worldPosX, TILE_SIZE*-32, TILE_SIZE*32, 200,DIR_RIGHT);
             break;
         case DIR_UP:
-            updatePlayerPosition(Player.worldPosY, TILE_SIZE*-31, TILE_SIZE*28, 240, DIR_UP);
+            updatePlayerPosition(Player.worldPosY, TILE_SIZE*-34, TILE_SIZE*34, 100, DIR_UP);
             break;
         default:
             break;
@@ -629,6 +531,15 @@ VOID process_player_input(void){
     if (Player.movementRemaining < 12) {
         Player.animation_step = 3;
     }
+    if(Player.movementRemaining == 0){
+        if(isPlayerInRoom(Player)){
+            Player.InRoom = 1;
+        }
+        else{
+            Player.InRoom = 0;
+        }
+    }
+    
 }
 
 
@@ -643,6 +554,12 @@ VOID process_player_input(void){
     s_KeyWasDown = S_KeyDown;
     c_KeyWasDown = C_KeyDown;
 
+}
+
+VOID HandleStairs(PLAYER p){
+        ResetTiles(Background_Tiles,Tile_Type_Array);
+        ProceduralGenerator(1000,10,18,Background_Tiles,Tile_Type_Array,10);
+        BuiltTileMap(Background_Tiles,&Background);
 }
 
 void updatePlayerPosition(int32_t& playerPos, int lowerBound, int upperBound, int screenLimit, int direction) {
@@ -705,6 +622,11 @@ void updatePlayerPosition(int32_t& playerPos, int lowerBound, int upperBound, in
 
 }
 
+VOID teleportPlayer(PLAYER P){
+    InitPlayer();
+
+}
+
 VOID render_game_frames(void){
 
     
@@ -731,11 +653,11 @@ VOID render_game_frames(void){
     StretchDIBits(deviceContext,0,0,gMonitorWidth,gMonitorHeight,0,0,GAME_WIDTH,GAME_HEIGHT,DrawingSurface.memory,&DrawingSurface.bitMapInfo,DIB_RGB_COLORS,SRCCOPY);
 
     LoadBackgroundToScreen(Background);
-    LoadBitMapToScreen(Player.sprite[Player.direction][Player.animation_step],Player.ScreenPosX,Player.ScreenPosY,16,-4);
+    LoadBitMapToScreen(Player.sprite[Player.direction][Player.animation_step],Player.ScreenPosX,Player.ScreenPosY,0,-4);
 
     char fpsBuffer[64] = {0};
     
-    sprintf(fpsBuffer, "Cooked FPS: %.01f Raw FPS: %.01f Screen Position: %d:%d, %d",gPreformance_Data.CookFPS,gPreformance_Data.RawFPS,Player.worldPosX, Player.worldPosY, Player.StandingTile_Index);
+    sprintf(fpsBuffer, "Cooked FPS: %.01f Raw FPS: %.01f Screen Position: %d:%d, %d ",gPreformance_Data.CookFPS,gPreformance_Data.RawFPS,Player.worldPosX, Player.worldPosY, Player.InRoom);
 
     SetTextColor(deviceContext, RGB(255, 255, 255));  
     
@@ -851,17 +773,32 @@ DWORD Load32BppBitmapFromFile(LPCSTR fileName,GAMEBITMAP* GameBitMap){
 DWORD InitPlayer(VOID){
     
     DWORD Error = ERROR_SUCCESS;
-    Player.worldPosX=0;
-    Player.worldPosY=0;
+
+    int16_t RandomSpawnX = std::rand() % 41 - 20;
+    int16_t RandomSpawnY = std::rand() % 41 - 20;
+    int32_t index = STARTING_TILE-(RandomSpawnX)- NUMB_TILES_PER_ROW*RandomSpawnY;
+    
+    while (Background_Tiles[index].type != FLOOR1)
+    {
+        RandomSpawnX = std::rand() % 41 - 20;
+        RandomSpawnY = std::rand() % 41 - 20;
+        index = STARTING_TILE-(RandomSpawnX)- NUMB_TILES_PER_ROW*RandomSpawnY;
+    }
+
+    Player.worldPosX=TILE_SIZE*RandomSpawnX;
+    Player.worldPosY=TILE_SIZE*RandomSpawnY;
+
+
     Player.ScreenPosX = GAME_WIDTH/2;
-    Player.ScreenPosY = GAME_HEIGHT/2;
+    Player.ScreenPosY = 80;
     Player.movementRemaining = 0;
     Player.animation_step = 1;
     Player.direction = DIR_DOWN;
     Player.idleFrameCount = 0;
-    Player.StandingTile = Background_Tiles[STARTING_TILE];
-    Player.StandingTile_Index = STARTING_TILE;
+    Player.StandingTile = Background_Tiles[index];
+    Player.StandingTile_Index = index;
     Player.noClip = 0;
+    Player.InRoom = 1;
     
 
     
@@ -988,6 +925,18 @@ VOID InitTiles(GAMEBITMAP tile_spritesheet){
    Tile_Starting_Points[CORNER_UP_RIGHT_IN] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*4 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*16);
    Tile_Starting_Points[CORNER_DOWN_LEFT_IN] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*3 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*15);
    Tile_Starting_Points[CORNER_DOWN_RIGHT_IN] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*4 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*15);
+   
+   Tile_Starting_Points[ISLAND_SINGLE] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*4 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*4);
+   Tile_Starting_Points[ISLAND_DOWN] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*4 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*6);
+   Tile_Starting_Points[ISLAND_UP] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*4 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*8);
+   Tile_Starting_Points[ISLAND_LEFT] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*3 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*7);
+   Tile_Starting_Points[ISLAND_RIGHT] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*5 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*7);
+   Tile_Starting_Points[ISLAND_CENTER] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*4 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*7);
+   
+   Tile_Starting_Points[V_SINGLE_WALL] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*3 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*4);
+   Tile_Starting_Points[H_SINGLE_WALL] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*4 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*3);
+   Tile_Starting_Points[WALL_FULL_2] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*7 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*1);
+    Tile_Starting_Points[STAIRS] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*7 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*21);
 
 
 
@@ -1179,32 +1128,37 @@ VOID LoadBackgroundToScreen(GAMEBITMAP BackgroundBitMap){
     int32_t TilesPerScreenH = GAME_WIDTH/TILE_SIZE;
     int32_t TilesPerScreenV = GAME_HEIGHT/TILE_SIZE;
 
-    int32_t VerticalMapOffset = (NUMB_TILES_PER_ROW - TilesPerScreenH) / 2;
-    int32_t Starting_Coordinate_Bitmap = ((BackgroundBitMap.bitMapInfo.bmiHeader.biWidth*BackgroundBitMap.bitMapInfo.bmiHeader.biHeight)/2)  + (BackgroundBitMap.bitMapInfo.bmiHeader.biWidth*TILE_SIZE*11 +TILE_SIZE*VerticalMapOffset);
+    int32_t StartingCol = STARTING_TILE%80;
+    int32_t StartingRow = STARTING_TILE/80;
+
+    int32_t HorizontalMapOffset = (NUMB_TILES_PER_ROW - TilesPerScreenH) / 2;
+    int32_t VerticalMapOffset = (NUMB_TILES_PER_ROW/TilesPerScreenV) /2 ;
+    int32_t Starting_Coordinate_Bitmap = ((BackgroundBitMap.bitMapInfo.bmiHeader.biWidth*BackgroundBitMap.bitMapInfo.bmiHeader.biHeight)/2)  + (BackgroundBitMap.bitMapInfo.bmiHeader.biWidth*TILE_SIZE*VerticalMapOffset +TILE_SIZE*HorizontalMapOffset);
 
 
     int32_t BitMapOffset = 0;
     int32_t BitMapStart = 0;
 
+
     int32_t PlayerYOffset = Player.worldPosY;
     int32_t PlayerXOffset = Player.worldPosX;
 
-    if (PlayerXOffset >= 24 * TILE_SIZE){
-        PlayerXOffset = 24 * TILE_SIZE;
+    if (PlayerXOffset >= 32 * TILE_SIZE){
+        PlayerXOffset = 32 * TILE_SIZE;
     }
 
-    else if (PlayerXOffset <= (-24 * TILE_SIZE)){
-        PlayerXOffset = (-24 * TILE_SIZE);
+    else if (PlayerXOffset <= (-32 * TILE_SIZE)){
+        PlayerXOffset = (-32 * TILE_SIZE);
     }
 
     
     
-     if (PlayerYOffset >= 28 * TILE_SIZE){
-        PlayerYOffset = 28 * TILE_SIZE;
+     if (PlayerYOffset >= 34 * TILE_SIZE){
+        PlayerYOffset = 34 * TILE_SIZE;
     }
 
-    else if (PlayerYOffset <= (-31 * TILE_SIZE)){
-        PlayerYOffset = (-31 * TILE_SIZE);
+    else if (PlayerYOffset <= (-34 * TILE_SIZE)){
+        PlayerYOffset = (-34 * TILE_SIZE);
     }
     
     
@@ -1216,14 +1170,42 @@ VOID LoadBackgroundToScreen(GAMEBITMAP BackgroundBitMap){
     PIXEL BitmapPixels = {0};
     
     
+    FLOAT darkenFactor = 0.7f;
+    int32_t circleRadius;
+    switch (Player.InRoom)
+    {
+    case 0:
+        circleRadius = 50;
+        break;
+    
+    default:
+        circleRadius = 14*TILE_SIZE;
+        break;
+    }
+    
+
+    int32_t circleRadiusSquared = circleRadius * circleRadius;
+
 
     for(int32_t PixelY = 0; PixelY < GAME_HEIGHT; PixelY++){
         for(int32_t PixelX = 0; PixelX < GAME_WIDTH; PixelX++){
+            int32_t dx = PixelX - Player.ScreenPosX - 12;
+            int32_t dy = PixelY - Player.ScreenPosY - 30;
+            
+            // Calculate the squared distance from the current pixel to the player
+            int32_t distanceSquared = dx * dx + dy * dy;
 
             MemoryOffset = Starting_Coordinate + PixelX - (GAME_WIDTH*PixelY);
             BitMapOffset = BitMapStart + PixelX - (BackgroundBitMap.bitMapInfo.bmiHeader.biWidth * PixelY);
             
             memcpy(&BitmapPixels,(PIXEL*)BackgroundBitMap.memory + BitMapOffset,sizeof(PIXEL));
+            if (distanceSquared > circleRadiusSquared) {
+                BitmapPixels.red *= darkenFactor;
+                BitmapPixels.green *= darkenFactor;
+                BitmapPixels.blue *= darkenFactor;
+            }
+            
+           
             memcpy((PIXEL*)DrawingSurface.memory + MemoryOffset,&BitmapPixels,sizeof(PIXEL));
             
 

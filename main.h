@@ -16,12 +16,13 @@
 
 #include <future>
 #include <chrono>
+#include <vector>
 
 
 //256 x 192
 
-#define GAME_WIDTH 400*2
-#define GAME_HEIGHT 240*2
+#define GAME_WIDTH 400
+#define GAME_HEIGHT 240
 #define GAME_BPP 32
 #define GAME_DRAWING_AREA_MEMORY_SIZE (GAME_WIDTH * GAME_HEIGHT * (GAME_BPP / 8))
 #define DESIRED_MIRCOSECONDS 16667/2
@@ -33,6 +34,9 @@
 #define MAP_WIDTH 2000
 #define MAP_HEIGHT 2000
 #define TILE_SIZE 25
+
+#define MIN_ROOM_SIZE 9
+#define MAX_ROOM_SIZE 20
 
 #define NUMB_TILES (MAP_WIDTH * MAP_HEIGHT)/(TILE_SIZE * TILE_SIZE)
 #define CENTER_TILE_INDEX 3200
@@ -47,7 +51,8 @@ TODO:
     - RENAME THIS SHIT SO THE NAMES COORESSPOND WITH THE SPRITES
     
 */
-#define NUMB_TILE_TYPES 18
+#define NUMB_TILE_TYPES 28
+
 #define FLOOR1 0
 #define FLOOR2 1
 #define FLOOR3 2
@@ -60,14 +65,29 @@ TODO:
 #define WALL_UP 7
 #define WALL_LEFT 8
 #define WALL_RIGHT 9
+
 #define CORNER_UP_LEFT 10
 #define CORNER_UP_RIGHT 11
 #define CORNER_DOWN_LEFT 12
 #define CORNER_DOWN_RIGHT 13
+
 #define CORNER_UP_LEFT_IN 14
 #define CORNER_UP_RIGHT_IN 15
 #define CORNER_DOWN_LEFT_IN 16
 #define CORNER_DOWN_RIGHT_IN 17
+
+#define ISLAND_SINGLE 18
+#define ISLAND_UP 19
+#define ISLAND_DOWN 20
+#define ISLAND_LEFT 21
+#define ISLAND_RIGHT 22
+#define ISLAND_CENTER 23
+
+#define V_SINGLE_WALL 24
+#define H_SINGLE_WALL 25
+
+#define WALL_FULL_2 26
+#define STAIRS 27
 
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
@@ -135,6 +155,7 @@ typedef struct PLAYER{
     TILE StandingTile;
     uint32_t StandingTile_Index;
     uint8_t noClip;
+    uint8_t InRoom;
     
    
     
@@ -160,6 +181,8 @@ typedef struct ROOM{
     uint32_t Width;
     uint32_t Height;
     uint32_t Exit;
+    
+    
 
 }ROOM;
 
@@ -178,6 +201,8 @@ DWORD InitNPC(VOID);
 int32_t GetPlayerTile(PLAYER*); 
 int32_t GetNextPlayerTile(PLAYER*,int32_t Direction); 
 VOID InitTiles(GAMEBITMAP);  
+VOID HandleStairs(PLAYER);
+VOID teleportPlayer(PLAYER P);
 //VOID GenerateRoom(int32_t,int32_t,int32_t, TILE*, TILE*);
 VOID GenerateRoomsSetNumber(int32_t,int32_t,int32_t, TILE*, TILE*);
 VOID GenerateRoomsAttempts(int32_t,int32_t,int32_t, TILE*, TILE*);
@@ -186,7 +211,11 @@ VOID DrawTile(int32_t, int32_t, TILE*, TILE*);
 VOID DrawTileOverride(int32_t, int32_t, TILE*, TILE*);
 VOID GenerateCorridors(int32_t, TILE*, TILE*);
 VOID GenerateConnectingPaths(int32_t, TILE*, TILE*);
+BOOL GenerateConnectingPathsImproved(ROOM, ROOM, TILE*, TILE*);
+VOID RemoveRoom(std::vector<ROOM>&, int);
 VOID GenerateCorridorsNoWalls(int32_t, TILE*, TILE*);
+
+int32_t GenerateStairTile();
 
 int32_t GetNextDirection(int32_t,TILE*,int8_t,int8_t);
 VOID DrawCorners(TILE *, TILE* ,int8_t , int8_t , int32_t );
@@ -197,6 +226,7 @@ BOOL IsRoomValid(ROOM, int32_t*,int32_t);
 BOOL IsTileValid(int32_t, int8_t,TILE *,int8_t,int8_t);
 BOOL IsTileValidNoWall(int32_t, int8_t,TILE *,int8_t,int8_t);
 
+
 VOID InitBackgroundFromTileSprite(GAMEBITMAP);
 VOID LoadBackgroundToScreen(GAMEBITMAP);
 VOID LoadBitFontToScreen(GAMEBITMAP,char*, int16_t, int16_t);
@@ -205,9 +235,10 @@ VOID LoadBitMapToScreen(GAMEBITMAP, int16_t, int16_t,int16_t,int16_t);
 VOID DrawTileDetails(TILE*,TILE*);
 
 void updatePlayerPosition(int32_t&,int,int,int,int);
+BOOL isPlayerInRoom(PLAYER);
 
 
 DWORD LoadSpriteFromSpriteSheet(GAMEBITMAP,GAMEBITMAP*,int16_t, int16_t,int16_t,int16_t);
-
+VOID ResetTiles(TILE*, TILE*);
 
 #endif 
