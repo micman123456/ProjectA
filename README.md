@@ -47,8 +47,9 @@ Screenshots:
 
 ![image](https://github.com/micman123456/ProjectA/assets/77693187/1e9f7384-2744-4108-9715-31fbaf388afc)
 
-![image](https://github.com/micman123456/ProjectA/assets/77693187/044ac361-cf7c-43c1-aa03-11218112ed8c)
+![image](https://github.com/micman123456/ProjectA/assets/77693187/83ce62c6-aed6-4583-bc7d-7757bc69d130)
 
-![image](https://github.com/micman123456/ProjectA/assets/77693187/2363a333-18cc-4f2d-8211-52af1236da90)
+![image](https://github.com/micman123456/ProjectA/assets/77693187/e7913649-c5a3-4360-9a08-9790db1c4ec7)
+
 
 
