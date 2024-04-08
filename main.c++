@@ -73,7 +73,7 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     
 
 
-    if(Load32BppBitmapFromFile("assets\\tiles\\Tiles-Amp-Plains.bmp",&Tile_Sprite_Sheet) != ERROR_SUCCESS){
+    if(Load32BppBitmapFromFile("assets\\tiles\\test_tiles.bmp",&Tile_Sprite_Sheet) != ERROR_SUCCESS){
         MessageBoxA(NULL, "Unable to load font sheet into memory", "Error", MB_ICONEXCLAMATION | MB_OK);
         result = GetLastError();
         return result;
@@ -86,11 +86,13 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     // }
 
     InitTiles(Tile_Sprite_Sheet);
+    
     // Generation using Attempt method
     
     //GenerateCorridors(25,Background_Tiles,Tile_Type_Array);
     
     ProceduralGenerator(1000,10,18,Background_Tiles,Tile_Type_Array,10);
+    BuiltTileMap(Background_Tiles,&Background);
     
     //GenerateRoomsAttempts(1000,MIN_ROOM_SIZE,MAX_ROOM_SIZE, Background_Tiles,Tile_Type_Array);
 
@@ -115,8 +117,8 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     //GenerateCorridorsNoWalls(50,Background_Tiles,Tile_Type_Array);
     // Generation using Set Number method
     //GenerateRoomsSetNumber(30,7,12, Background_Tiles,Tile_Type_Array);
-    BuiltTileMap(Background_Tiles,&Background);
-
+    
+    //SaveBitmap("background.bmp", &Background);
 
     if (timeBeginPeriod(1) == TIMERR_NOCANDO){
         MessageBoxA(NULL, "Unable to set time res", "Error", MB_ICONEXCLAMATION | MB_OK);
@@ -125,8 +127,6 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     }
 
     
-    
-
     
     HMODULE NtDllModuleHandle;
     if ((NtDllModuleHandle = GetModuleHandleA("ntdll.dll")) == NULL){
@@ -417,13 +417,16 @@ VOID process_player_input(void){
     static int16_t s_KeyWasDown;
     static int16_t w_KeyWasDown;
     static int16_t c_KeyWasDown;
+    static int16_t t_KeyWasDown;
+    static int16_t r_KeyWasDown;
+
 
     Player.noClip = (C_KeyDown) ? 1 - Player.noClip : Player.noClip;
 
-    if(T_KeyDown){
+    if(T_KeyDown && !t_KeyWasDown){
         teleportPlayer(Player);
     }
-    if(R_KeyDown){
+    if(R_KeyDown && ! r_KeyWasDown){
         HandleStairs(Player);
     }
 
@@ -449,10 +452,10 @@ VOID process_player_input(void){
     
     if (A_KeyDown){
         Player.direction = DIR_LEFT;
-         if(GetNextPlayerTile(&Player,1) == 0 || GetNextPlayerTile(&Player,1) == STAIRS|| Player.noClip == 1){
+         if(GetNextPlayerTile(&Player,1) < 5 || GetNextPlayerTile(&Player,1) == STAIRS|| Player.noClip == 1){
             if(!Ctr_KeyDown){
                 Player.animation_step = 1;
-                Player.movementRemaining = 25;
+                Player.movementRemaining = 24;
                 Player.idleFrameCount = 0;
                 Player.StandingTile_Index += 1;
                 Player.StandingTile = Background_Tiles[Player.StandingTile_Index];
@@ -461,10 +464,10 @@ VOID process_player_input(void){
     }
     else if (D_KeyDown){
          Player.direction = DIR_RIGHT;
-         if(GetNextPlayerTile(&Player,2) == 0 || GetNextPlayerTile(&Player,2) == STAIRS|| Player.noClip == 1){
+         if(GetNextPlayerTile(&Player,2) < 5 || GetNextPlayerTile(&Player,2) == STAIRS|| Player.noClip == 1){
             if(!Ctr_KeyDown){
                 Player.animation_step = 1;
-                Player.movementRemaining = 25;
+                Player.movementRemaining = 24;
                 Player.idleFrameCount = 0;
                 Player.StandingTile_Index -= 1;
                 Player.StandingTile = Background_Tiles[Player.StandingTile_Index];
@@ -473,11 +476,11 @@ VOID process_player_input(void){
     }
     else if (W_KeyDown){
          Player.direction = DIR_UP;
-         if(GetNextPlayerTile(&Player,3) == 0 || GetNextPlayerTile(&Player,3) == STAIRS|| Player.noClip == 1){
+         if(GetNextPlayerTile(&Player,3) < 5 || GetNextPlayerTile(&Player,3) == STAIRS|| Player.noClip == 1){
         if(!Ctr_KeyDown){
         
             Player.animation_step = 1;
-            Player.movementRemaining = 25;
+            Player.movementRemaining = 24;
             Player.idleFrameCount = 0;
             Player.StandingTile_Index -= NUMB_TILES_PER_ROW;
             Player.StandingTile = Background_Tiles[Player.StandingTile_Index];
@@ -487,10 +490,10 @@ VOID process_player_input(void){
     }
     else if (S_KeyDown){
         Player.direction = DIR_DOWN;
-        if(GetNextPlayerTile(&Player,0) == 0 || GetNextPlayerTile(&Player,0) == STAIRS || Player.noClip == 1){
+        if(GetNextPlayerTile(&Player,0) < 5 || GetNextPlayerTile(&Player,0) == STAIRS || Player.noClip == 1){
             if(!Ctr_KeyDown){
             Player.animation_step = 1;
-            Player.movementRemaining = 25;
+            Player.movementRemaining = 24;
             Player.idleFrameCount = 0;
             Player.StandingTile_Index += NUMB_TILES_PER_ROW;
             Player.StandingTile = Background_Tiles[Player.StandingTile_Index];
@@ -505,18 +508,35 @@ VOID process_player_input(void){
    }
     
    else {
-    switch (Player.direction) {
+    // switch (Player.direction) {
+    //     case DIR_DOWN:
+    //         updatePlayerPosition(Player.worldPosY, TILE_SIZE*-34, TILE_SIZE*34, 100,DIR_DOWN);
+    //         break;
+    //     case DIR_LEFT:
+    //         updatePlayerPosition(Player.worldPosX, TILE_SIZE*-32, TILE_SIZE*32, 200, DIR_LEFT);
+    //         break;
+    //     case DIR_RIGHT:
+    //         updatePlayerPosition(Player.worldPosX, TILE_SIZE*-32, TILE_SIZE*32, 200,DIR_RIGHT);
+    //         break;
+    //     case DIR_UP:
+    //         updatePlayerPosition(Player.worldPosY, TILE_SIZE*-34, TILE_SIZE*34, 100, DIR_UP);
+    //         break;
+    //     default:
+    //         break;
+    // }
+
+     switch (Player.direction) {
         case DIR_DOWN:
-            updatePlayerPosition(Player.worldPosY, TILE_SIZE*-34, TILE_SIZE*34, 100,DIR_DOWN);
+            updatePlayerPosition(Player.worldPosY, TILE_SIZE*-44, TILE_SIZE*44, 120,DIR_DOWN);
             break;
         case DIR_LEFT:
-            updatePlayerPosition(Player.worldPosX, TILE_SIZE*-32, TILE_SIZE*32, 200, DIR_LEFT);
+            updatePlayerPosition(Player.worldPosX, TILE_SIZE*-41, TILE_SIZE*41, 200, DIR_LEFT);
             break;
         case DIR_RIGHT:
-            updatePlayerPosition(Player.worldPosX, TILE_SIZE*-32, TILE_SIZE*32, 200,DIR_RIGHT);
+            updatePlayerPosition(Player.worldPosX, TILE_SIZE*-41, TILE_SIZE*41, 200,DIR_RIGHT);
             break;
         case DIR_UP:
-            updatePlayerPosition(Player.worldPosY, TILE_SIZE*-34, TILE_SIZE*34, 100, DIR_UP);
+            updatePlayerPosition(Player.worldPosY, TILE_SIZE*-44, TILE_SIZE*44, 120, DIR_UP);
             break;
         default:
             break;
@@ -553,6 +573,8 @@ VOID process_player_input(void){
     a_KeyWasDown = A_KeyDown;
     s_KeyWasDown = S_KeyDown;
     c_KeyWasDown = C_KeyDown;
+    t_KeyWasDown = T_KeyDown;
+    r_KeyWasDown = R_KeyDown;
 
 }
 
@@ -631,7 +653,7 @@ VOID render_game_frames(void){
 
     
 
-    //LoadBitFontToScreen(Font,"Player",390,280);
+    
     
     //InitBackgroundFromTileSprite(Tile_Sprite_Map);
     
@@ -652,8 +674,14 @@ VOID render_game_frames(void){
 
     StretchDIBits(deviceContext,0,0,gMonitorWidth,gMonitorHeight,0,0,GAME_WIDTH,GAME_HEIGHT,DrawingSurface.memory,&DrawingSurface.bitMapInfo,DIB_RGB_COLORS,SRCCOPY);
 
+    //LoadBackScreen();
     LoadBackgroundToScreen(Background);
-    LoadBitMapToScreen(Player.sprite[Player.direction][Player.animation_step],Player.ScreenPosX,Player.ScreenPosY,0,-4);
+    
+    //LoadBitFontToScreen(Font,"Amp plains",160,120);
+    //LoadBitFontToScreen(Font,"2F",180,140);
+    //LoadBitMapToScreen(Tile_Type_Array[0].tile_sprite,24,24,0,0);
+    //LoadBitMapToScreen(Tile_Type_Array[1].tile_sprite,49,24,0,0);
+    LoadBitMapToScreen(Player.sprite[Player.direction][Player.animation_step],Player.ScreenPosX,Player.ScreenPosY,-20,-12);
 
     char fpsBuffer[64] = {0};
     
@@ -778,7 +806,7 @@ DWORD InitPlayer(VOID){
     int16_t RandomSpawnY = std::rand() % 41 - 20;
     int32_t index = STARTING_TILE-(RandomSpawnX)- NUMB_TILES_PER_ROW*RandomSpawnY;
     
-    while (Background_Tiles[index].type != FLOOR1)
+    while (Background_Tiles[index].type > FLOOR5)
     {
         RandomSpawnX = std::rand() % 41 - 20;
         RandomSpawnY = std::rand() % 41 - 20;
@@ -788,9 +816,8 @@ DWORD InitPlayer(VOID){
     Player.worldPosX=TILE_SIZE*RandomSpawnX;
     Player.worldPosY=TILE_SIZE*RandomSpawnY;
 
-
     Player.ScreenPosX = GAME_WIDTH/2;
-    Player.ScreenPosY = 80;
+    Player.ScreenPosY = GAME_HEIGHT/2;
     Player.movementRemaining = 0;
     Player.animation_step = 1;
     Player.direction = DIR_DOWN;
@@ -902,42 +929,76 @@ VOID InitTiles(GAMEBITMAP tile_spritesheet){
    
 
    
-   Tile_Starting_Points[FLOOR1] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*12 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*19);
-   Tile_Starting_Points[FLOOR2] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*1 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*13);
-   Tile_Starting_Points[FLOOR3] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*19 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*1);
-   Tile_Starting_Points[FLOOR4] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*1 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*16);
-   Tile_Starting_Points[FLOOR5] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*20 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*15);
+   Tile_Starting_Points[FLOOR1] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + ((TILE_SIZE+1)*12 - (TILE_SIZE+1)*(tile_spritesheet.bitMapInfo.bmiHeader.biWidth*16)) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth;
+  // Tile_Starting_Points[FLOOR2] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + ((TILE_SIZE+1)*12 - (TILE_SIZE+1)*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*1) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth;
+//    Tile_Starting_Points[FLOOR2] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*1 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*13);
+//    Tile_Starting_Points[FLOOR3] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*19 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*1);
+//    Tile_Starting_Points[FLOOR4] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*1 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*16);
+//    Tile_Starting_Points[FLOOR5] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*20 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*15);
 
 
 
-   Tile_Starting_Points[WALL_FULL] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*4 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*1);
-   Tile_Starting_Points[WALL_DOWN] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*4 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*2);
-   Tile_Starting_Points[WALL_UP] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*4 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*0);
-   Tile_Starting_Points[WALL_LEFT] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*3 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*1);
-   Tile_Starting_Points[WALL_RIGHT] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*5 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*1);
+//    Tile_Starting_Points[WALL_FULL] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*4 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*1);
+//    Tile_Starting_Points[WALL_DOWN] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*4 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*2);
+//    Tile_Starting_Points[WALL_UP] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*4 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*0);
+//    Tile_Starting_Points[WALL_LEFT] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*3 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*1);
+//    Tile_Starting_Points[WALL_RIGHT] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*5 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*1);
    
-   Tile_Starting_Points[CORNER_UP_LEFT] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*3 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*0);
-   Tile_Starting_Points[CORNER_UP_RIGHT] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*5 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*0);
-   Tile_Starting_Points[CORNER_DOWN_LEFT] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*3 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*2);
-   Tile_Starting_Points[CORNER_DOWN_RIGHT] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*5 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*2);
+//    Tile_Starting_Points[CORNER_UP_LEFT] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*3 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*0);
+//    Tile_Starting_Points[CORNER_UP_RIGHT] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*5 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*0);
+//    Tile_Starting_Points[CORNER_DOWN_LEFT] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*3 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*2);
+//    Tile_Starting_Points[CORNER_DOWN_RIGHT] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*5 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*2);
    
-   Tile_Starting_Points[CORNER_UP_LEFT_IN] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*3 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*16);
-   Tile_Starting_Points[CORNER_UP_RIGHT_IN] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*4 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*16);
-   Tile_Starting_Points[CORNER_DOWN_LEFT_IN] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*3 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*15);
-   Tile_Starting_Points[CORNER_DOWN_RIGHT_IN] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*4 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*15);
+//    Tile_Starting_Points[CORNER_UP_LEFT_IN] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*3 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*16);
+//    Tile_Starting_Points[CORNER_UP_RIGHT_IN] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*4 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*16);
+//    Tile_Starting_Points[CORNER_DOWN_LEFT_IN] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*3 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*15);
+//    Tile_Starting_Points[CORNER_DOWN_RIGHT_IN] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*4 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*15);
    
-   Tile_Starting_Points[ISLAND_SINGLE] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*4 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*4);
-   Tile_Starting_Points[ISLAND_DOWN] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*4 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*6);
-   Tile_Starting_Points[ISLAND_UP] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*4 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*8);
-   Tile_Starting_Points[ISLAND_LEFT] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*3 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*7);
-   Tile_Starting_Points[ISLAND_RIGHT] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*5 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*7);
-   Tile_Starting_Points[ISLAND_CENTER] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*4 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*7);
+//    Tile_Starting_Points[ISLAND_SINGLE] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*4 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*4);
+//    Tile_Starting_Points[ISLAND_DOWN] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*4 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*6);
+//    Tile_Starting_Points[ISLAND_UP] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*4 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*8);
+//    Tile_Starting_Points[ISLAND_LEFT] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*3 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*7);
+//    Tile_Starting_Points[ISLAND_RIGHT] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*5 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*7);
+//    Tile_Starting_Points[ISLAND_CENTER] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*4 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*7);
    
-   Tile_Starting_Points[V_SINGLE_WALL] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*3 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*4);
-   Tile_Starting_Points[H_SINGLE_WALL] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*4 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*3);
-   Tile_Starting_Points[WALL_FULL_2] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*7 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*1);
-    Tile_Starting_Points[STAIRS] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*7 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*21);
+//    Tile_Starting_Points[V_SINGLE_WALL] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*3 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*4);
+//    Tile_Starting_Points[H_SINGLE_WALL] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*4 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*3);
+//    Tile_Starting_Points[WALL_FULL_2] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*7 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*1);
+//     Tile_Starting_Points[STAIRS] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + (TILE_SIZE*7 - TILE_SIZE*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*21);
 
+Tile_Starting_Points[FLOOR2] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + ((TILE_SIZE+1)*1 - (TILE_SIZE+1)*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*13) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth;
+Tile_Starting_Points[FLOOR3] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + ((TILE_SIZE+1)*19 - (TILE_SIZE+1)*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*1) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth;
+Tile_Starting_Points[FLOOR4] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + ((TILE_SIZE+1)*12 - (TILE_SIZE+1)*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*4)- tile_spritesheet.bitMapInfo.bmiHeader.biWidth;
+Tile_Starting_Points[FLOOR5] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + ((TILE_SIZE+1)*20 - (TILE_SIZE+1)*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*15)-tile_spritesheet.bitMapInfo.bmiHeader.biWidth;
+
+Tile_Starting_Points[WALL_FULL] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + ((TILE_SIZE+1)*4 - (TILE_SIZE+1)*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*1)-tile_spritesheet.bitMapInfo.bmiHeader.biWidth;
+Tile_Starting_Points[WALL_DOWN] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + ((TILE_SIZE+1)*4 - (TILE_SIZE+1)*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*2)-tile_spritesheet.bitMapInfo.bmiHeader.biWidth;
+Tile_Starting_Points[WALL_UP] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + ((TILE_SIZE+1)*4 - (TILE_SIZE+1)*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*0)-tile_spritesheet.bitMapInfo.bmiHeader.biWidth;
+Tile_Starting_Points[WALL_LEFT] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + ((TILE_SIZE+1)*3 - (TILE_SIZE+1)*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*1)-tile_spritesheet.bitMapInfo.bmiHeader.biWidth;
+Tile_Starting_Points[WALL_RIGHT] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + ((TILE_SIZE+1)*5 - (TILE_SIZE+1)*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*1)-tile_spritesheet.bitMapInfo.bmiHeader.biWidth;
+
+Tile_Starting_Points[CORNER_UP_LEFT] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + ((TILE_SIZE+1)*3 - (TILE_SIZE+1)*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*0)-tile_spritesheet.bitMapInfo.bmiHeader.biWidth;
+Tile_Starting_Points[CORNER_UP_RIGHT] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + ((TILE_SIZE+1)*5 - (TILE_SIZE+1)*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*0)-tile_spritesheet.bitMapInfo.bmiHeader.biWidth;
+Tile_Starting_Points[CORNER_DOWN_LEFT] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + ((TILE_SIZE+1)*3 - (TILE_SIZE+1)*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*2)-tile_spritesheet.bitMapInfo.bmiHeader.biWidth;
+Tile_Starting_Points[CORNER_DOWN_RIGHT] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + ((TILE_SIZE+1)*5 - (TILE_SIZE+1)*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*2)-tile_spritesheet.bitMapInfo.bmiHeader.biWidth;
+
+Tile_Starting_Points[CORNER_UP_LEFT_IN] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + ((TILE_SIZE+1)*3 - (TILE_SIZE+1)*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*16)-tile_spritesheet.bitMapInfo.bmiHeader.biWidth;
+Tile_Starting_Points[CORNER_UP_RIGHT_IN] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + ((TILE_SIZE+1)*4 - (TILE_SIZE+1)*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*16)-tile_spritesheet.bitMapInfo.bmiHeader.biWidth;
+Tile_Starting_Points[CORNER_DOWN_LEFT_IN] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + ((TILE_SIZE+1)*3 - (TILE_SIZE+1)*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*15)-tile_spritesheet.bitMapInfo.bmiHeader.biWidth;
+Tile_Starting_Points[CORNER_DOWN_RIGHT_IN] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + ((TILE_SIZE+1)*4 - (TILE_SIZE+1)*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*15)-tile_spritesheet.bitMapInfo.bmiHeader.biWidth;
+
+Tile_Starting_Points[ISLAND_SINGLE] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + ((TILE_SIZE+1)*4 - (TILE_SIZE+1)*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*4)-tile_spritesheet.bitMapInfo.bmiHeader.biWidth;
+Tile_Starting_Points[ISLAND_DOWN] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + ((TILE_SIZE+1)*4 - (TILE_SIZE+1)*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*6)-tile_spritesheet.bitMapInfo.bmiHeader.biWidth;
+Tile_Starting_Points[ISLAND_UP] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + ((TILE_SIZE+1)*4 - (TILE_SIZE+1)*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*8)-tile_spritesheet.bitMapInfo.bmiHeader.biWidth;
+Tile_Starting_Points[ISLAND_LEFT] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + ((TILE_SIZE+1)*3 - (TILE_SIZE+1)*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*7)-tile_spritesheet.bitMapInfo.bmiHeader.biWidth;
+Tile_Starting_Points[ISLAND_RIGHT] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + ((TILE_SIZE+1)*5 - (TILE_SIZE+1)*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*7)-tile_spritesheet.bitMapInfo.bmiHeader.biWidth;
+Tile_Starting_Points[ISLAND_CENTER] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + ((TILE_SIZE+1)*4 - (TILE_SIZE+1)*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*7)-tile_spritesheet.bitMapInfo.bmiHeader.biWidth;
+
+Tile_Starting_Points[V_SINGLE_WALL] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + ((TILE_SIZE+1)*3 - (TILE_SIZE+1)*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*4)-tile_spritesheet.bitMapInfo.bmiHeader.biWidth;
+Tile_Starting_Points[H_SINGLE_WALL] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + ((TILE_SIZE+1)*4 - (TILE_SIZE+1)*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*3)-tile_spritesheet.bitMapInfo.bmiHeader.biWidth;
+Tile_Starting_Points[WALL_FULL_2] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + ((TILE_SIZE+1)*7 - (TILE_SIZE+1)*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*1)-tile_spritesheet.bitMapInfo.bmiHeader.biWidth;
+Tile_Starting_Points[WALL_FULL_3] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + ((TILE_SIZE+1)*10 - (TILE_SIZE+1)*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*1)-tile_spritesheet.bitMapInfo.bmiHeader.biWidth;
+Tile_Starting_Points[STAIRS] = ((tile_spritesheet.bitMapInfo.bmiHeader.biHeight * tile_spritesheet.bitMapInfo.bmiHeader.biWidth) - tile_spritesheet.bitMapInfo.bmiHeader.biWidth) + ((TILE_SIZE+1)*7 - (TILE_SIZE+1)*tile_spritesheet.bitMapInfo.bmiHeader.biWidth*21)-tile_spritesheet.bitMapInfo.bmiHeader.biWidth;
 
 
    for (int i = 0; i < NUMB_TILE_TYPES; i++){
@@ -976,20 +1037,7 @@ VOID InitTiles(GAMEBITMAP tile_spritesheet){
    }
 
    for (int i = 0; i<NUMB_TILES;i++){
-
-    if (i%NUMB_TILES_PER_ROW==(NUMB_TILES_PER_ROW-1) || i%NUMB_TILES_PER_ROW==1 || i%NUMB_TILES_PER_ROW==0 || i%NUMB_TILES_PER_ROW==2){
-        Background_Tiles[i].tile_sprite = Tile_Type_Array[WALL_FULL].tile_sprite; 
-        Background_Tiles[i].type = Tile_Type_Array[WALL_FULL].type;     
-    }
-    else if (i < NUMB_TILES_PER_ROW*2 || i >NUMB_TILES -(NUMB_TILES_PER_ROW*2)){
-        Background_Tiles[i].tile_sprite = Tile_Type_Array[WALL_FULL].tile_sprite; 
-        Background_Tiles[i].type = Tile_Type_Array[WALL_FULL].type;     
-    }
-    else{
-        Background_Tiles[i] = Tile_Type_Array[WALL_FULL];
-    }
-    
-
+    Background_Tiles[i] = Tile_Type_Array[WALL_FULL];
    }
 
 }
@@ -1039,8 +1087,8 @@ VOID BuiltTileMap(TILE* Tile_Array,GAMEBITMAP* backgroundBitMap){
 
     
     backgroundBitMap->bitMapInfo.bmiHeader.biBitCount = GAME_BPP;
-    backgroundBitMap->bitMapInfo.bmiHeader.biWidth = 2000;
-    backgroundBitMap->bitMapInfo.bmiHeader.biHeight = 2000;
+    backgroundBitMap->bitMapInfo.bmiHeader.biWidth = MAP_WIDTH;
+    backgroundBitMap->bitMapInfo.bmiHeader.biHeight = MAP_HEIGHT;
     backgroundBitMap->bitMapInfo.bmiHeader.biCompression = 0;
     backgroundBitMap->bitMapInfo.bmiHeader.biPlanes = 1;
     int32_t bytesNeeded = 4 * backgroundBitMap->bitMapInfo.bmiHeader.biWidth * backgroundBitMap->bitMapInfo.bmiHeader.biHeight;
@@ -1125,11 +1173,11 @@ Fixes the inverted map issue but not gonna implement until I fix the tile coord 
 VOID LoadBackgroundToScreen(GAMEBITMAP BackgroundBitMap){
     int32_t Starting_Coordinate = ((GAME_HEIGHT*GAME_WIDTH) - GAME_WIDTH);
 
-    int32_t TilesPerScreenH = GAME_WIDTH/TILE_SIZE;
-    int32_t TilesPerScreenV = GAME_HEIGHT/TILE_SIZE;
+    int32_t TilesPerScreenH = GAME_WIDTH/TILE_SIZE; // 16
+    int32_t TilesPerScreenV = GAME_HEIGHT/TILE_SIZE; // 10
 
-    int32_t StartingCol = STARTING_TILE%80;
-    int32_t StartingRow = STARTING_TILE/80;
+    int32_t StartingCol = STARTING_TILE%NUMB_TILES_PER_ROW;
+    int32_t StartingRow = STARTING_TILE/NUMB_TILES_PER_ROW;
 
     int32_t HorizontalMapOffset = (NUMB_TILES_PER_ROW - TilesPerScreenH) / 2;
     int32_t VerticalMapOffset = (NUMB_TILES_PER_ROW/TilesPerScreenV) /2 ;
@@ -1143,24 +1191,25 @@ VOID LoadBackgroundToScreen(GAMEBITMAP BackgroundBitMap){
     int32_t PlayerYOffset = Player.worldPosY;
     int32_t PlayerXOffset = Player.worldPosX;
 
-    if (PlayerXOffset >= 32 * TILE_SIZE){
-        PlayerXOffset = 32 * TILE_SIZE;
+    
+    
+    if (PlayerXOffset >= 41 * TILE_SIZE){
+        PlayerXOffset = 41 * TILE_SIZE;
     }
 
-    else if (PlayerXOffset <= (-32 * TILE_SIZE)){
-        PlayerXOffset = (-32 * TILE_SIZE);
+    else if (PlayerXOffset <= (-41 * TILE_SIZE)){
+        PlayerXOffset = (-41 * TILE_SIZE);
     }
 
     
     
-     if (PlayerYOffset >= 34 * TILE_SIZE){
-        PlayerYOffset = 34 * TILE_SIZE;
+     if (PlayerYOffset >= 44 * TILE_SIZE){
+        PlayerYOffset = 44 * TILE_SIZE;
     }
 
-    else if (PlayerYOffset <= (-34 * TILE_SIZE)){
-        PlayerYOffset = (-34 * TILE_SIZE);
+    else if (PlayerYOffset <= (-44 * TILE_SIZE)){
+        PlayerYOffset = (-44 * TILE_SIZE);
     }
-    
     
     BitMapStart = Starting_Coordinate_Bitmap + (PlayerYOffset*BackgroundBitMap.bitMapInfo.bmiHeader.biWidth) + PlayerXOffset;
   
@@ -1189,8 +1238,8 @@ VOID LoadBackgroundToScreen(GAMEBITMAP BackgroundBitMap){
 
     for(int32_t PixelY = 0; PixelY < GAME_HEIGHT; PixelY++){
         for(int32_t PixelX = 0; PixelX < GAME_WIDTH; PixelX++){
-            int32_t dx = PixelX - Player.ScreenPosX - 12;
-            int32_t dy = PixelY - Player.ScreenPosY - 30;
+            int32_t dx = PixelX - Player.ScreenPosX - 4;
+            int32_t dy = PixelY - Player.ScreenPosY - 11;
             
             // Calculate the squared distance from the current pixel to the player
             int32_t distanceSquared = dx * dx + dy * dy;
@@ -1214,7 +1263,27 @@ VOID LoadBackgroundToScreen(GAMEBITMAP BackgroundBitMap){
 
 }
 
+VOID LoadBackScreen(){
+    int32_t MemoryOffset = 0;
+    int32_t Starting_Coordinate = GAME_WIDTH*GAME_HEIGHT - GAME_WIDTH;
+    PIXEL p = {150};
+    // p.alpha = 0xFF;
+    // p.red = 0xFF;
+    // p.green = 0xFF;
+    // p.blue = 0xFF;
+    
+    for(int32_t PixelY = 0; PixelY < GAME_HEIGHT; PixelY++){
+        for(int32_t PixelX = 0; PixelX < GAME_WIDTH; PixelX++){
 
+            MemoryOffset = Starting_Coordinate + PixelX - (GAME_WIDTH*PixelY);
+            memcpy((PIXEL*)DrawingSurface.memory + MemoryOffset,&p,sizeof(PIXEL));
+            
+    
+        }
+    }
+    
+
+}
 
 
 
@@ -1500,13 +1569,16 @@ VOID LoadBitFontToScreen(GAMEBITMAP GameBitMap, char* str, int16_t x, int16_t y)
         
         for(int32_t PixelY = 0; PixelY < charHeight; PixelY++){
             
-            for(int32_t PixelX = 3; PixelX < 10; PixelX++){
+            for(int32_t PixelX =0 ; PixelX < charWidth; PixelX++){
             
             FontSheetOffset = (Starting_Address + PixelX) - (GameBitMap.bitMapInfo.bmiHeader.biWidth*PixelY);
             StrBitMapOffset = (i*7) + ((stingBitMap.bitMapInfo.bmiHeader.biHeight*stingBitMap.bitMapInfo.bmiHeader.biWidth) - stingBitMap.bitMapInfo.bmiHeader.biWidth) + PixelX - (stingBitMap.bitMapInfo.bmiHeader.biWidth* PixelY);
             
             memcpy(&FontSheetPixels,(PIXEL*)GameBitMap.memory + FontSheetOffset,sizeof(PIXEL));
-            memcpy((PIXEL*)stingBitMap.memory + StrBitMapOffset,&FontSheetPixels,sizeof(PIXEL));
+            if(FontSheetPixels.alpha == 255){
+                memcpy((PIXEL*)stingBitMap.memory + StrBitMapOffset,&FontSheetPixels,sizeof(PIXEL));
+            }
+            
         }
         
     }

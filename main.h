@@ -31,18 +31,18 @@
 #define DIR_RIGHT 2
 #define DIR_UP 3
 
-#define MAP_WIDTH 2000
-#define MAP_HEIGHT 2000
-#define TILE_SIZE 25
+#define MAP_WIDTH 2400
+#define MAP_HEIGHT 2400
+#define TILE_SIZE 24
 
 #define MIN_ROOM_SIZE 9
 #define MAX_ROOM_SIZE 20
 
-#define NUMB_TILES (MAP_WIDTH * MAP_HEIGHT)/(TILE_SIZE * TILE_SIZE)
-#define CENTER_TILE_INDEX 3200
+#define NUMB_TILES (MAP_WIDTH*MAP_HEIGHT)/(TILE_SIZE*TILE_SIZE)
+#define CENTER_TILE_INDEX 5000
 // Sqrt of NUMB_TILES
-#define NUMB_TILES_PER_ROW 80
-#define STARTING_TILE 3240
+#define NUMB_TILES_PER_ROW 100
+#define STARTING_TILE 5050
 
 /* Tile Types */
 
@@ -51,7 +51,7 @@ TODO:
     - RENAME THIS SHIT SO THE NAMES COORESSPOND WITH THE SPRITES
     
 */
-#define NUMB_TILE_TYPES 28
+#define NUMB_TILE_TYPES 29
 
 #define FLOOR1 0
 #define FLOOR2 1
@@ -88,6 +88,8 @@ TODO:
 
 #define WALL_FULL_2 26
 #define STAIRS 27
+#define WALL_FULL_3 28
+
 
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
@@ -203,6 +205,7 @@ int32_t GetNextPlayerTile(PLAYER*,int32_t Direction);
 VOID InitTiles(GAMEBITMAP);  
 VOID HandleStairs(PLAYER);
 VOID teleportPlayer(PLAYER P);
+VOID LoadBackScreen();
 //VOID GenerateRoom(int32_t,int32_t,int32_t, TILE*, TILE*);
 VOID GenerateRoomsSetNumber(int32_t,int32_t,int32_t, TILE*, TILE*);
 VOID GenerateRoomsAttempts(int32_t,int32_t,int32_t, TILE*, TILE*);
@@ -220,6 +223,7 @@ int32_t GenerateStairTile();
 int32_t GetNextDirection(int32_t,TILE*,int8_t,int8_t);
 VOID DrawCorners(TILE *, TILE* ,int8_t , int8_t , int32_t );
 int32_t GetFloorType(TILE* ,int32_t);
+int32_t GetFloorDetail(TILE* ,int32_t);
 //VOID LoadTilesToScreen(TILE*);
 VOID BuiltTileMap(TILE*,GAMEBITMAP*);
 BOOL IsRoomValid(ROOM, int32_t*,int32_t);
@@ -232,8 +236,8 @@ VOID LoadBackgroundToScreen(GAMEBITMAP);
 VOID LoadBitFontToScreen(GAMEBITMAP,char*, int16_t, int16_t);
 VOID LoadBitMapToScreen(GAMEBITMAP, int16_t, int16_t,int16_t,int16_t);
 
+VOID DrawTileMap(TILE*,TILE*);
 VOID DrawTileDetails(TILE*,TILE*);
-
 void updatePlayerPosition(int32_t&,int,int,int,int);
 BOOL isPlayerInRoom(PLAYER);
 

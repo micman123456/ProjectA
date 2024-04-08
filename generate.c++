@@ -49,7 +49,7 @@ VOID ProceduralGenerator(int32_t RoomAttempts, int32_t MinRoomSize, int32_t MaxR
     }
     Room_Vector_Copy = Room_Vector;
     int32_t stairTile = GenerateStairTile();
-
+    logFile << "Tile Count" << NUMB_TILES << std::endl;
     logFile << "Rooms Generated Successfully: " << Room_Vector.size() << std::endl;
     logFile << "Stairs Generated Successfully: " << stairTile << std::endl;
     
@@ -86,10 +86,12 @@ VOID ProceduralGenerator(int32_t RoomAttempts, int32_t MinRoomSize, int32_t MaxR
     //         RemoveRoom(Room_Vector,Room2.Starting_Tile);
     // }
     
-    DrawTileDetails(Background_Tiles,Tile_Type_Array);
-    DrawTileDetails(Background_Tiles,Tile_Type_Array);
-    DrawTileDetails(Background_Tiles,Tile_Type_Array);
+    DrawTileMap(Background_Tiles,Tile_Type_Array);
+    DrawTileMap(Background_Tiles,Tile_Type_Array);
+    DrawTileMap(Background_Tiles,Tile_Type_Array);
 
+
+    DrawTileDetails(Background_Tiles,Tile_Type_Array);
     DrawTileOverride(stairTile,STAIRS,Background_Tiles,Tile_Type_Array);
 
     }catch(const std::exception& e) {
@@ -99,7 +101,7 @@ VOID ProceduralGenerator(int32_t RoomAttempts, int32_t MinRoomSize, int32_t MaxR
     
 }
 
-VOID DrawTileDetails(TILE *Background_Tiles,TILE* Tile_Type_Array){
+VOID DrawTileMap(TILE *Background_Tiles,TILE* Tile_Type_Array){
     // First we draw the external wall tiles to be WALL_FULL.
 
     for (int i = 0; i<NUMB_TILES;i++){
@@ -128,6 +130,24 @@ VOID DrawTileDetails(TILE *Background_Tiles,TILE* Tile_Type_Array){
    }
     
 
+}
+
+VOID DrawTileDetails(TILE *Background_Tiles,TILE* Tile_Type_Array){
+
+   for (int i = NUMB_TILES_PER_ROW*2; i < (NUMB_TILES-NUMB_TILES_PER_ROW*2); i++){
+
+
+        // Ignores Tiles on the edges // 
+
+        if (i%NUMB_TILES_PER_ROW==(NUMB_TILES_PER_ROW-1) || i%NUMB_TILES_PER_ROW==1 || i%NUMB_TILES_PER_ROW==0 || i%NUMB_TILES_PER_ROW==2){  
+            continue;
+        }
+        
+        
+        int32_t Tile_Type = GetFloorDetail(Background_Tiles,i);
+        DrawTileOverride(i,Tile_Type,Background_Tiles,Tile_Type_Array);
+
+   }
 }
 
 int32_t GenerateStairTile(){
@@ -912,6 +932,97 @@ int32_t GetFloorType(TILE* Background_Tiles,int32_t Tile){
         }
         
     }
+
+    
+    return Tile_Type;
+
+
+}
+
+
+int32_t GetFloorDetail(TILE* Background_Tiles,int32_t Tile){
+
+   
+    int32_t TileArray[8];
+    
+     
+    int32_t Tile_Type = Background_Tiles[Tile].type;
+    //return Tile_Type;
+    int32_t Top_Left,Top_Center,Top_Right,Left,Right,Bot_Left,Bot_Center,Bot_Right;
+    
+    Top_Left = (Tile - NUMB_TILES_PER_ROW - 1);
+    Top_Center = (Tile- NUMB_TILES_PER_ROW);
+    Top_Right = (Tile - NUMB_TILES_PER_ROW + 1);
+    Left = Tile-1;
+    Right = Tile+1;
+    Bot_Left = (Tile + NUMB_TILES_PER_ROW - 1);
+    Bot_Center = (Tile+ NUMB_TILES_PER_ROW);
+    Bot_Right = (Tile + NUMB_TILES_PER_ROW + 1);
+
+    int8_t index = 4;
+    TileArray[0] = Top_Center;
+    TileArray[1] = Left;
+    TileArray[2] = Right;
+    TileArray[3] = Bot_Center;
+
+   
+
+    // Check the top most part of the tile first 
+
+    if(Tile_Type == FLOOR1){
+
+    if(Background_Tiles[Top_Center].type > FLOOR5 || Background_Tiles[Left].type > FLOOR5 || Background_Tiles[Right].type > FLOOR5 || Background_Tiles[Bot_Center].type > FLOOR5){
+        int32_t random_number = rand() % 9 + 2;
+        switch (random_number)
+        {
+        case 2:
+            Tile_Type = FLOOR4;
+            break;
+        
+        case 3:
+            Tile_Type = FLOOR3;
+            break;
+        
+        case 4:
+            Tile_Type = FLOOR4;
+            break;
+
+        case 5:
+            Tile_Type = FLOOR4;
+            break;
+        default:
+            Tile_Type = FLOOR1;
+            break;
+        }
+
+    }
+    
+    }
+    else if (Tile_Type == WALL_FULL){
+        int32_t random_number = rand() % 9 + 2;
+        switch (random_number)
+        {
+        case 2:
+            Tile_Type = WALL_FULL_2;
+            break;
+        
+        case 3:
+            Tile_Type = WALL_FULL_2;
+            break;
+        
+        case 4:
+            Tile_Type = WALL_FULL_3;
+            break;
+        case 5:
+            Tile_Type = WALL_FULL_3;
+            break;
+        default:
+            Tile_Type = WALL_FULL;
+            break;
+        }
+
+    }
+    
 
     
     return Tile_Type;
