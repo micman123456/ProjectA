@@ -1,0 +1,57 @@
+Tile Count10000
+Rooms Generated Successfully: 22
+Stairs Generated Successfully: 6828
+Rooms Selected  Room1 Start: 3425 Room2 Start 6663
+Path created from 3425 to 6663
+Removing Rooms from vector
+Rooms remaining: 20
+Rooms Selected  Room1 Start: 5809 Room2 Start 8165
+Path created from 5809 to 8165
+Removing Rooms from vector
+Rooms remaining: 18
+Rooms Selected  Room1 Start: 6526 Room2 Start 4681
+Path created from 6526 to 4681
+Removing Rooms from vector
+Rooms remaining: 16
+Rooms Selected  Room1 Start: 3003 Room2 Start 4765
+Path created from 3003 to 4765
+Removing Rooms from vector
+Rooms remaining: 14
+Rooms Selected  Room1 Start: 1918 Room2 Start 3383
+Path created from 1918 to 3383
+Removing Rooms from vector
+Rooms remaining: 12
+Rooms Selected  Room1 Start: 7984 Room2 Start 314
+Rooms Selected  Room1 Start: 4610 Room2 Start 8027
+Path created from 4610 to 8027
+Removing Rooms from vector
+Rooms remaining: 10
+Rooms Selected  Room1 Start: 374 Room2 Start 3045
+Rooms Selected  Room1 Start: 1772 Room2 Start 314
+Rooms Selected  Room1 Start: 1772 Room2 Start 3045
+Rooms Selected  Room1 Start: 5539 Room2 Start 3045
+Path created from 5539 to 3045
+Removing Rooms from vector
+Rooms remaining: 8
+Rooms Selected  Room1 Start: 6905 Room2 Start 3060
+Path created from 6905 to 3060
+Removing Rooms from vector
+Rooms remaining: 6
+Rooms Selected  Room1 Start: 374 Room2 Start 374
+Rooms Selected  Room1 Start: 1342 Room2 Start 1342
+Rooms Selected  Room1 Start: 374 Room2 Start 1772
+Rooms Selected  Room1 Start: 314 Room2 Start 7984
+Path created from 314 to 7984
+Removing Rooms from vector
+Rooms remaining: 4
+Rooms Selected  Room1 Start: 1259 Room2 Start 1772
+Path created from 1259 to 1772
+Removing Rooms from vector
+Rooms remaining: 2
+Rooms Selected  Room1 Start: 1342 Room2 Start 1342
+Rooms Selected  Room1 Start: 1342 Room2 Start 1342
+Rooms Selected  Room1 Start: 1342 Room2 Start 374
+Path created from 1342 to 374
+Removing Rooms from vector
+Rooms remaining: 0
+All Paths generated 

@@ -1,7 +1,7 @@
 #ifndef MAIN_H
 #define MAIN_H
 
-#include <string.h>
+#include <string>
 #include <windows.h>
 #include <winerror.h>
 #include <stdio.h>
@@ -17,6 +17,8 @@
 #include <future>
 #include <chrono>
 #include <vector>
+#include "Dialogue.c++"
+
 
 
 //256 x 192
@@ -91,6 +93,12 @@ TODO:
 #define WALL_FULL_3 28
 
 
+typedef enum GAMESTATE{
+    GAME_OPENING,
+    GAME_TITLE_SCREEN,
+    GAME_LOADING_SCREEN,
+    GAME_DUNGEON
+}GAMESTATE;
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 DWORD Create_Main_Window(HINSTANCE hInstance);
@@ -206,6 +214,7 @@ VOID InitTiles(GAMEBITMAP);
 VOID HandleStairs(PLAYER);
 VOID teleportPlayer(PLAYER P);
 VOID LoadBackScreen();
+DWORD LoadDungeonIntoMemory(char*);
 //VOID GenerateRoom(int32_t,int32_t,int32_t, TILE*, TILE*);
 VOID GenerateRoomsSetNumber(int32_t,int32_t,int32_t, TILE*, TILE*);
 VOID GenerateRoomsAttempts(int32_t,int32_t,int32_t, TILE*, TILE*);
@@ -232,8 +241,12 @@ BOOL IsTileValidNoWall(int32_t, int8_t,TILE *,int8_t,int8_t);
 
 
 VOID InitBackgroundFromTileSprite(GAMEBITMAP);
-VOID LoadBackgroundToScreen(GAMEBITMAP);
-VOID LoadBitFontToScreen(GAMEBITMAP,char*, int16_t, int16_t);
+//VOID LoadBackgroundToScreen(GAMEBITMAP);
+VOID LoadBackgroundToScreen();
+
+//VOID LoadBitFontToScreen(GAMEBITMAP,char*, int16_t, int16_t,int16_t);
+void LoadBitFontToScreen(GAMEBITMAP GameBitMap, const std::string& str, int16_t x, int16_t y, int16_t center);
+
 VOID LoadBitMapToScreen(GAMEBITMAP, int16_t, int16_t,int16_t,int16_t);
 
 VOID DrawTileMap(TILE*,TILE*);
@@ -244,5 +257,14 @@ BOOL isPlayerInRoom(PLAYER);
 
 DWORD LoadSpriteFromSpriteSheet(GAMEBITMAP,GAMEBITMAP*,int16_t, int16_t,int16_t,int16_t);
 VOID ResetTiles(TILE*, TILE*);
-
+VOID RenderDungeonScene(GAMEBITMAP, PLAYER*);
+VOID RenderTitleScene();
+VOID RenderLoadingScene(char*);
+DWORD CreateTextBoxBitMap(GAMEBITMAP*,int32_t,int32_t);
+VOID DisplayTextBox(GAMEBITMAP TextBox, Dialogue Dialogue);
+VOID DisplayOptBox(GAMEBITMAP TextBox);
+BOOL HandleDialog(Dialogue*);
+VOID ToggleTextBox();
+VOID ToggleOptBox();
+VOID HandleOptionSelection(int_fast8_t);
 #endif 
