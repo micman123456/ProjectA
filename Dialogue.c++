@@ -55,6 +55,11 @@ public:
     int getNumberOfPages() const {
         return NumberOfPages;
     }
+
+    VOID ResetDialogue(){
+        CurrentPage = 0;
+    }
+
 };
 
 

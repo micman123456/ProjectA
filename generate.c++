@@ -30,7 +30,7 @@ VOID DrawTileOverride(int32_t Background_Index, int32_t Tile_Type, TILE *Backgro
     Background_Tiles[Background_Index].visited = 1;
 }
 
-VOID ProceduralGenerator(int32_t RoomAttempts, int32_t MinRoomSize, int32_t MaxRoomSize, TILE *Background_Tiles, TILE* Tile_Type_Array, int32_t Corridors){
+int32_t ProceduralGenerator(int32_t RoomAttempts, int32_t MinRoomSize, int32_t MaxRoomSize, TILE *Background_Tiles, TILE* Tile_Type_Array, int32_t Corridors){
     try {
         std::ofstream logFile("Procedural_generation_log.txt");
         if (!logFile.is_open()) {
@@ -45,7 +45,7 @@ VOID ProceduralGenerator(int32_t RoomAttempts, int32_t MinRoomSize, int32_t MaxR
         Room_Vector.pop_back();
     }
     Room_Vector_Copy = Room_Vector;
-    int32_t stairTile = GenerateStairTile();
+    int32_t stairTile = GenerateStairTile(Background_Tiles);
     logFile << "Tile Count" << NUMB_TILES << std::endl;
     logFile << "Rooms Generated Successfully: " << Room_Vector.size() << std::endl;
     logFile << "Stairs Generated Successfully: " << stairTile << std::endl;
@@ -83,12 +83,16 @@ VOID ProceduralGenerator(int32_t RoomAttempts, int32_t MinRoomSize, int32_t MaxR
     DrawTileMap(Background_Tiles,Tile_Type_Array);
 
 
+
     DrawTileDetails(Background_Tiles,Tile_Type_Array);
     DrawTileOverride(stairTile,STAIRS,Background_Tiles,Tile_Type_Array);
+    return stairTile;
 
     }catch(const std::exception& e) {
         std::cerr << "Exception caught: " << e.what() << std::endl;
     }
+
+    
     
     
 }
@@ -142,12 +146,25 @@ VOID DrawTileDetails(TILE *Background_Tiles,TILE* Tile_Type_Array){
    }
 }
 
-int32_t GenerateStairTile(){
+int32_t GenerateStairTile(TILE* Background_Tiles){
     ROOM Room1 = Room_Vector[rand() % Room_Vector.size()];
     int16_t randomX = (rand() % Room1.Width-1) + 1;
     int16_t randomY = (rand() % Room1.Height-1) + 1;
+    int32_t stairTile = Room1.Starting_Tile + randomX + randomY*NUMB_TILES_PER_ROW;
+
+    while (TRUE)
+    {
+        if(Background_Tiles[stairTile].type == FLOOR1){
+            break;
+        }
+        randomX = (rand() % Room1.Width-1) + 1;
+        randomY = (rand() % Room1.Height-1) + 1;
+        stairTile = Room1.Starting_Tile + randomX + randomY*NUMB_TILES_PER_ROW;
+    }
     
-    return Room1.Starting_Tile + randomX + randomY*NUMB_TILES_PER_ROW;
+
+
+    return stairTile;
 
     
 }

@@ -1,2 +1,2 @@
-Rooms Selected  Room1 Start: 1342 Room2 Start 374
+Rooms Selected  Room1 Start: 5944 Room2 Start 3275
 Path Finished  HDIS: 0, VDIS: 0

@@ -18,7 +18,7 @@
 #include <chrono>
 #include <vector>
 #include "Dialogue.c++"
-
+#include "Dungeon.c++"
 
 
 //256 x 192
@@ -211,10 +211,12 @@ DWORD InitNPC(VOID);
 int32_t GetPlayerTile(PLAYER*); 
 int32_t GetNextPlayerTile(PLAYER*,int32_t Direction); 
 VOID InitTiles(GAMEBITMAP);  
-VOID HandleStairs(PLAYER);
-VOID teleportPlayer(PLAYER P);
+VOID HandleStairs();
+VOID teleportPlayer();
+VOID TeleportToStairs(PLAYER);
+VOID SetWorldPosition(int32_t);
 VOID LoadBackScreen();
-DWORD LoadDungeonIntoMemory(char*);
+DWORD LoadDungeonIntoMemory(Dungeon);
 //VOID GenerateRoom(int32_t,int32_t,int32_t, TILE*, TILE*);
 VOID GenerateRoomsSetNumber(int32_t,int32_t,int32_t, TILE*, TILE*);
 VOID GenerateRoomsAttempts(int32_t,int32_t,int32_t, TILE*, TILE*);
@@ -227,7 +229,7 @@ BOOL GenerateConnectingPathsImproved(ROOM, ROOM, TILE*, TILE*);
 VOID RemoveRoom(std::vector<ROOM>&, int);
 VOID GenerateCorridorsNoWalls(int32_t, TILE*, TILE*);
 
-int32_t GenerateStairTile();
+int32_t GenerateStairTile(TILE*);
 
 int32_t GetNextDirection(int32_t,TILE*,int8_t,int8_t);
 VOID DrawCorners(TILE *, TILE* ,int8_t , int8_t , int32_t );
@@ -267,4 +269,7 @@ BOOL HandleDialog(Dialogue*);
 VOID ToggleTextBox();
 VOID ToggleOptBox();
 VOID HandleOptionSelection(int_fast8_t);
+VOID HandGamestateChange(GAMESTATE, GAMESTATE);
+
+
 #endif 

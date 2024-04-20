@@ -47,7 +47,8 @@ Graphics graphics(&DrawingSurface, &Player);
 int32_t LoadingFrameCount = 0;
 LPSTR LoadingText = "Loading";
 
-Dialogue dialogue(1);
+Dialogue MainMenuDialogue(1);
+Dialogue DungeonDialogue(1);
 int32_t PageIndex = 0;
 
 int_fast8_t ShowTextBox = 1;
@@ -55,6 +56,10 @@ int_fast8_t ShowOptBox = 1;
 
 // Defaut Option selection set to Yes // 
 int_fast8_t YesNoOptions = 0;
+
+Dungeon Dungeons[3];
+
+int32_t stairs;
 
 INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, INT nCmdShow)
 
@@ -107,17 +112,26 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         return result;
     }
 
-    dialogue.setDialogue(0, 0, "Would you like to load into Amp Plains?"); 
-    dialogue.setDialogue(0, 1, ""); 
-    dialogue.setDialogue(0, 2, ""); 
-    dialogue.setDialogue(0, 3, "opt"); 
-    // dialogue.setDialogue(0, 2, "Page 1 Row 3"); 
-    // dialogue.setDialogue(1, 0, "Page 2 Row 1"); 
-    // dialogue.setDialogue(1, 1, "Page 2 Row 2"); 
-    // dialogue.setDialogue(1, 2, "Page 2 Row 3"); 
-    // dialogue.setDialogue(2, 0, "Page 3 Row 1"); 
-    // dialogue.setDialogue(2, 1, "Page 3 Row 2"); 
-    // dialogue.setDialogue(2, 2, "Page 3 Row 3"); 
+
+    // Sets Main menu Dialogue // 
+    MainMenuDialogue.setDialogue(0, 0, "Would you like to load into Amp Plains?"); 
+    MainMenuDialogue.setDialogue(0, 1, ""); 
+    MainMenuDialogue.setDialogue(0, 2, ""); 
+    MainMenuDialogue.setDialogue(0, 3, "opt"); 
+
+    DungeonDialogue.setDialogue(0, 0, "Proceed to the next floor?"); 
+    DungeonDialogue.setDialogue(0, 1, ""); 
+    DungeonDialogue.setDialogue(0, 2, ""); 
+    DungeonDialogue.setDialogue(0, 3, "opt"); 
+
+    // Setting Dungeons // 
+    Dungeon AmpPlains = Dungeon("Amp Plains","assets\\tiles\\Tiles-Amp-Plains.bmp",10);
+    Dungeon AppleWoods= Dungeon("Apple Woods","assets\\tiles\\test_tiles.bmp",10);
+    Dungeon DesertCave= Dungeon("Desert Cave","assets\\tiles\\Desert.bmp",10);
+
+    Dungeons[0] = AmpPlains;
+    Dungeons[1] = AppleWoods;
+    Dungeons[2] = DesertCave;
     
     HMODULE NtDllModuleHandle;
     if ((NtDllModuleHandle = GetModuleHandleA("ntdll.dll")) == NULL){
@@ -189,13 +203,15 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         case GAME_LOADING_SCREEN:
             LoadingFrameCount++;
             if(LoadingFrameCount>200){
-                gamestate = GAME_DUNGEON;
+                HandGamestateChange(gamestate,GAME_DUNGEON);
                 LoadingFrameCount = 0; 
             }
+
         case GAME_OPENING:
+        
         LoadingFrameCount++;
             if(LoadingFrameCount>200){
-                gamestate = GAME_TITLE_SCREEN;
+                HandGamestateChange(gamestate,GAME_TITLE_SCREEN);
                 LoadingFrameCount = 0; 
             }
             break;
@@ -297,17 +313,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
     
     case STAIRS:
         {
-            ShowCursor(TRUE);
-            if (MessageBox(hwnd, L"Regenerate Room?", L"Project", MB_OKCANCEL) == IDOK)
-            {
-                HandleStairs(Player);
-                teleportPlayer(Player);
-                LoadingText = "Loading next Room";
-                gamestate = GAME_LOADING_SCREEN;
-            }
-            // Else: User canceled. Do nothing.
-            ShowCursor(FALSE);
-           
+            HandleStairs();           
         }
         return 0;
     
@@ -444,10 +450,12 @@ VOID process_player_input(void){
         
         if(ShowTextBox == 1 && ShowOptBox == 0){
             if(A_KeyDown && !a_KeyWasDown){
-                HandleDialog(&dialogue) ? ToggleTextBox() : dialogue.incrementPage();
+                HandleDialog(&MainMenuDialogue) ? ToggleTextBox() : MainMenuDialogue.incrementPage();
             }
         }
+
         else if (ShowOptBox == 1){
+            
             if(S_KeyDown && !s_KeyWasDown){
                 HandleOptionSelection(0);
             }
@@ -458,12 +466,7 @@ VOID process_player_input(void){
                 switch (YesNoOptions)
                 {
                 case 0:
-                    ToggleTextBox();
-                    ToggleOptBox();
-                    
-                    LoadDungeonIntoMemory("assets\\tiles\\Tiles-Amp-Plains.bmp");
-                    Sleep(200);
-                    gamestate = GAME_LOADING_SCREEN; 
+                    HandGamestateChange(gamestate,GAME_LOADING_SCREEN);
                     break;
                 
                 default:
@@ -481,17 +484,40 @@ VOID process_player_input(void){
     Player.noClip = (C_KeyDown) ? 1 - Player.noClip : Player.noClip;
 
     if(T_KeyDown && !t_KeyWasDown){
-        teleportPlayer(Player);
+        teleportPlayer();
     }
     if(R_KeyDown && ! r_KeyWasDown){
-        HandleStairs(Player);
+        HandleStairs();
     }
 
    
    if (Player.movementRemaining == 0){
     if(Player.StandingTile.type == STAIRS){
-        SendMessageA(gGameWindow,STAIRS,0,0);
+        
+         ShowTextBox = 1;
+         ShowOptBox = 1;
+        
+        if(S_KeyDown && !s_KeyWasDown){
+                HandleOptionSelection(0);
+            }
+            else if(W_KeyDown && !w_KeyWasDown){
+                HandleOptionSelection(1);
+            }
+            else if(EnterKeyDown && !enter_KeyWasDown ){
+                switch (YesNoOptions)
+                {
+                case 0:
+                    SendMessageA(gGameWindow,STAIRS,0,0);
+                    break;
+                
+                default:
+                    teleportPlayer();
+                    break;
+                }
+            }
+        
     }
+    else{
 
     if (Player.idleFrameCount < 30){
         Player.animation_step = 0;
@@ -560,7 +586,7 @@ VOID process_player_input(void){
         
 
     }
-
+   }
 
    }
     
@@ -630,16 +656,44 @@ VOID process_player_input(void){
 //"assets\\tiles\\test_tiles.bmp"
 
 
-DWORD LoadDungeonIntoMemory(char* PathToTileBitmapFile){
+// DWORD LoadDungeonIntoMemory(char* PathToTileBitmapFile){
+//     DWORD Error = ERROR_SUCCESS;
+//     if(Load32BppBitmapFromFile(PathToTileBitmapFile,&Tile_Sprite_Sheet) != ERROR_SUCCESS){
+//         MessageBoxA(NULL, "Unable to load font sheet into memory", "Error", MB_ICONEXCLAMATION | MB_OK);
+//         Error = GetLastError();
+//         return Error;
+//     }
+
+//     InitTiles(Tile_Sprite_Sheet);
+//     ProceduralGenerator(1000,10,18,Background_Tiles,Tile_Type_Array,10);
+//     BuiltTileMap(Background_Tiles,&Background);
+
+//     graphics.SetBackgroundBitMap(&Background);
+
+
+
+//     if (InitPlayer() != ERROR_SUCCESS){
+//         MessageBoxA(NULL, "Error ititalizing player sprite", "Error", MB_ICONEXCLAMATION | MB_OK);
+//         Error = GetLastError();
+//         return Error;
+//     }
+
+
+
+//     return Error;
+// }
+
+
+DWORD LoadDungeonIntoMemory(Dungeon Dungeon){
     DWORD Error = ERROR_SUCCESS;
-    if(Load32BppBitmapFromFile(PathToTileBitmapFile,&Tile_Sprite_Sheet) != ERROR_SUCCESS){
+    if(Load32BppBitmapFromFile(Dungeon.getPath(),&Tile_Sprite_Sheet) != ERROR_SUCCESS){
         MessageBoxA(NULL, "Unable to load font sheet into memory", "Error", MB_ICONEXCLAMATION | MB_OK);
         Error = GetLastError();
         return Error;
     }
 
     InitTiles(Tile_Sprite_Sheet);
-    ProceduralGenerator(1000,10,18,Background_Tiles,Tile_Type_Array,10);
+    stairs = ProceduralGenerator(1000,10,18,Background_Tiles,Tile_Type_Array,10);
     BuiltTileMap(Background_Tiles,&Background);
 
     graphics.SetBackgroundBitMap(&Background);
@@ -658,10 +712,20 @@ DWORD LoadDungeonIntoMemory(char* PathToTileBitmapFile){
 }
 
 
-VOID HandleStairs(PLAYER p){
+VOID HandleStairs(){
+        // Set gamestate and Loading text to whatever floor of the dungeon // 
+        Dungeons[0].NextFloor();
+        LoadingText = Dungeons[0].getNameWithCurrentFloor();
+        
+        HandGamestateChange(gamestate,GAME_LOADING_SCREEN);
+
+        // Generate Next floor // 
         ResetTiles(Background_Tiles,Tile_Type_Array);
-        ProceduralGenerator(1000,10,18,Background_Tiles,Tile_Type_Array,10);
+        stairs = ProceduralGenerator(1000,10,18,Background_Tiles,Tile_Type_Array,10);
         BuiltTileMap(Background_Tiles,&Background);
+
+        // Init player
+        teleportPlayer();
 }
 
 void updatePlayerPosition(int32_t& playerPos, int lowerBound, int upperBound, int screenLimit, int direction) {
@@ -724,8 +788,45 @@ void updatePlayerPosition(int32_t& playerPos, int lowerBound, int upperBound, in
 
 }
 
-VOID teleportPlayer(PLAYER P){
+VOID teleportPlayer(){
     InitPlayer();
+
+}
+
+VOID TeleportToStairs(PLAYER Player){
+    
+}
+
+VOID SetWorldPosition(int32_t TileIndex){
+    int32_t x,xDifference,y,yDifference;
+    x = (TileIndex%NUMB_TILES_PER_ROW) - (NUMB_TILES_PER_ROW/2);
+    y = (TileIndex/NUMB_TILES_PER_ROW) - (NUMB_TILES_PER_ROW/2);
+
+    // if (x >= 41){
+    //     xDifference = x-41;
+    //     x = 41;    
+    // }
+    // else if (x <= (-41)){
+    //     xDifference = x+41;
+    //     x = (-41);
+    //     }
+    
+    // if (y >= 44){
+    //     yDifference = y-44;
+    //     y = 44;
+    // }
+    // else if (y <= (-44)){
+    //     yDifference = y+44;
+    //     y = (-44); 
+    //     }
+
+    Player.worldPosX = x;
+    Player.worldPosY = y;
+    //Player.ScreenPosX += xDifference;
+    //Player.ScreenPosY += yDifference;
+    Player.StandingTile = Background_Tiles[TileIndex];
+    Player.StandingTile_Index = TileIndex;
+    
 
 }
 
@@ -1637,7 +1738,16 @@ VOID RenderDungeonScene(GAMEBITMAP BackgroundBitMap, PLAYER* Player){
      switch (ShowTextBox)
     {
     case 1:
-        DisplayTextBox(TextBox,dialogue);
+        DisplayTextBox(TextBox,DungeonDialogue);
+        break;
+    
+    default:
+        break;
+    }
+    switch (ShowOptBox)
+    {
+    case 1:
+        DisplayOptBox(OptionBox);
         break;
     
     default:
@@ -1654,7 +1764,7 @@ VOID RenderTitleScene(){
     switch (ShowTextBox)
     {
     case 1:
-        DisplayTextBox(TextBox,dialogue);
+        DisplayTextBox(TextBox,MainMenuDialogue);
         break;
     
     default:
@@ -1664,7 +1774,7 @@ VOID RenderTitleScene(){
     switch (ShowOptBox)
     {
     case 1:
-        DisplayOptBox(TextBox);
+        DisplayOptBox(OptionBox);
         break;
     
     default:
@@ -1693,7 +1803,7 @@ VOID DisplayTextBox(GAMEBITMAP TextBox, Dialogue Dialogue) {
     
 }
 
-VOID DisplayOptBox(GAMEBITMAP TextBox) {
+VOID DisplayOptBox(GAMEBITMAP OptionBox) {
      int32_t x = 312;
      int32_t y = 140;
 
@@ -1748,4 +1858,61 @@ VOID ToggleTextBox(){
 
 VOID ToggleOptBox(){
     ShowOptBox = ShowOptBox^1;
+}
+
+VOID HandGamestateChange(GAMESTATE CurrentGameState, GAMESTATE Next){
+    switch (CurrentGameState)
+    {
+    case GAME_OPENING:
+        gamestate = GAME_TITLE_SCREEN;
+        break;
+    case GAME_TITLE_SCREEN:
+        ToggleTextBox();
+        ToggleOptBox();
+        LoadDungeonIntoMemory(Dungeons[0]);      
+        gamestate = GAME_LOADING_SCREEN;
+        break;
+
+    case GAME_DUNGEON:
+        
+        switch (Next)
+        {
+        case GAME_LOADING_SCREEN:
+            ToggleTextBox();
+            ToggleOptBox();  
+            gamestate = GAME_LOADING_SCREEN;
+            
+            break;
+        case GAME_TITLE_SCREEN:
+            /* code */
+            break;
+        
+        default:
+            break;
+        }
+
+
+        break;
+    case GAME_LOADING_SCREEN:
+
+        switch (Next)
+        {
+        case GAME_DUNGEON:
+            
+            gamestate = GAME_DUNGEON;
+            break;
+        case GAME_TITLE_SCREEN:
+            /* code */
+            break;
+        
+        default:
+            break;
+        }
+
+
+        break;
+    
+    default:
+        break;
+    }
 }
