@@ -6,8 +6,16 @@ class Dialogue {
 private:
     int NumberOfPages;
     int CurrentPage;
+    BOOL set = false;
+    
     std::vector<std::vector<std::string>> dialogueData; 
 
+public:
+    Dialogue() : NumberOfPages(6) {
+       
+        dialogueData.resize(6, std::vector<std::string>(4, std::string(42, ' ')));
+        CurrentPage = 0;
+    }
 public:
     Dialogue(int numPages) : NumberOfPages(numPages) {
        
@@ -32,6 +40,13 @@ public:
         CurrentPage++;
     }
 
+    VOID Set(){
+        set = TRUE;
+    }
+    
+    BOOL IsSet(){
+        return set;
+    }
 
     std::string getDialogue(int page, int column) const {
         if (page >= 0 && page < NumberOfPages && column >= 0 && column < 4 ) {
@@ -51,12 +66,15 @@ public:
         }
     }
 
-
+    void setNumberOfPages(int32_t number){
+        NumberOfPages = number;
+    }
+    
     int getNumberOfPages() const {
         return NumberOfPages;
     }
 
-    VOID ResetDialogue(){
+    void ResetDialogue(){
         CurrentPage = 0;
     }
 

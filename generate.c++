@@ -1,6 +1,7 @@
 
 #include "main.h"
 
+
 std::random_device rd;
 std::mt19937 gen(rd());
 
@@ -1012,5 +1013,42 @@ VOID ResetTiles(TILE *Background_Tiles, TILE* Tile_Type_Array){
     for (int i = 0; i<NUMB_TILES;i++){
     Background_Tiles[i] = Tile_Type_Array[WALL_FULL];
    }
+
+}
+
+VOID SetTilesOverworld(TILE *Background_Tiles,GAMEBITMAP* FloorPlan){
+
+    int32_t Starting_Coordinate = FloorPlan->bitMapInfo.bmiHeader.biWidth*FloorPlan->bitMapInfo.bmiHeader.biHeight - FloorPlan->bitMapInfo.bmiHeader.biWidth;
+    int32_t GBM_Height = FloorPlan->bitMapInfo.bmiHeader.biHeight;
+    int32_t GBM_Width = FloorPlan->bitMapInfo.bmiHeader.biWidth;
+    int32_t Memory_Offset = 0;
+    int32_t tile_index = NUMB_TILES-1;
+    PIXEL Pixel;
+    
+    for(int PixelY = 0; PixelY<GBM_Height; PixelY+=TILE_SIZE){
+        for(int PixelX = 0; PixelX<GBM_Width; PixelX+=TILE_SIZE){
+            
+            memcpy(&Pixel,(PIXEL*)FloorPlan->memory + Memory_Offset,sizeof(PIXEL));
+            
+            if(Pixel.red == 255 && Pixel.blue == 255 && Pixel.green == 255){
+                Background_Tiles[tile_index+2].type=FLOOR1;
+            }
+            else if(Pixel.red == 255 && Pixel.blue == 255 && Pixel.green == 0){
+                Background_Tiles[tile_index+2].type=FLOOR2;
+            }
+            else if(Pixel.red == 0 && Pixel.blue == 0 && Pixel.green == 255){
+                Background_Tiles[tile_index+2].type=FLOOR3;
+            }
+            
+            else{
+                Background_Tiles[tile_index+2].type=WALL_FULL;
+            }
+            
+            tile_index--;
+            Memory_Offset = PixelX + FloorPlan->bitMapInfo.bmiHeader.biWidth*PixelY;
+            
+        }
+    }
+      
 
 }

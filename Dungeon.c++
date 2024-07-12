@@ -41,10 +41,19 @@ public:
         CurrentFloor++;
     }
 
+    VOID Reset(){
+        CurrentFloor = 1;
+    }
 
     LPSTR getNameWithCurrentFloor() const {
+        
         char buffer[100]; 
+        if (CurrentFloor > NumberOfFloors){
+            sprintf(buffer, "%s COMPLETED", Name);
+        }
+        else{
         sprintf(buffer, "%s BF%d", Name, CurrentFloor);
+        }
         LPSTR result = new char[strlen(buffer) + 1];
         strcpy(result, buffer);
         return result;

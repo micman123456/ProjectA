@@ -1,0 +1,17 @@
+4
+Welcome to the Project B
+(Alpha)
+//
+//
+Controls are standard
+ASWD for movement, 
+enter to interact.
+//
+In the Dungeon you can
+use R to jump floors, 
+T to teleport C for no clip
+//
+Talk to Makuhita to enter a Dungeon
+Thanks for playing!
+//
+//

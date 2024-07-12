@@ -10,6 +10,8 @@
 #include "graphics.c++"
 #include "controls.c++"
 #include "textbox.c++"
+#include "Overworld.c++"
+
 #include <cstdint>
 
 
@@ -17,13 +19,17 @@
 // Globals //
 
 
+
+
 BOOL gGameIsRunning;
 HWND gGameWindow;
 GAMESTATE gamestate = GAME_OPENING;
+GAMESTATE  NextGameState = GAME_OPENING;
+GAMESTATE Prvgamestate = GAME_OPENING;
 
 GAMEBITMAP DrawingSurface;
 GAMEBITMAP Font;
-GAMEBITMAP TextBox,OptionBox;
+GAMEBITMAP TextBox,OptionBox,PortraitBox;
 
 
 PREFORMENCE_DATA gPreformance_Data; 
@@ -34,6 +40,9 @@ int32_t gMonitorHeight;
 
 GAMEBITMAP Room_Sprite;
 GAMEBITMAP Background;
+GAMEBITMAP FloorPlan;
+
+GAMEBITMAP PortTest; 
 
 GAMEBITMAP Tile_Sprite_Sheet;
 
@@ -49,17 +58,46 @@ LPSTR LoadingText = "Loading";
 
 Dialogue MainMenuDialogue(1);
 Dialogue DungeonDialogue(1);
+Dialogue TestingDialogue(3);
+Dialogue CurrentDialogue;
+
 int32_t PageIndex = 0;
 
 int_fast8_t ShowTextBox = 1;
-int_fast8_t ShowOptBox = 1;
+int_fast8_t ShowOptBox = 0;
+int_fast8_t ShowPortBox = 1;
 
 // Defaut Option selection set to Yes // 
 int_fast8_t YesNoOptions = 0;
 
+
 Dungeon Dungeons[3];
+Overworld Overworlds[3];
+
+
+int32_t CurrentOverworld = 0;
+int32_t OverworldFramePointer =0;
+
+int32_t CurrentDungeon = 0;
 
 int32_t stairs;
+int_fast8_t flicker = 0;
+
+Menu MainMenu;
+
+BOOL Interaction = FALSE;
+GAMEBITMAP CurrentPortrait;
+int32_t cooldown_frames =0;
+
+
+std::vector<NPC> Loaded_NPCs(2);
+int32_t CurrentNPCIndex;
+
+// 0 = overworld
+// 1 = dung
+
+int32_t Mode = 0;
+
 
 INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, INT nCmdShow)
 
@@ -104,6 +142,12 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         result = GetLastError();
         return result;
     }
+
+     if (CreateTextBoxBitMap(&PortraitBox,44,46) != ERROR_SUCCESS){
+        MessageBoxA(NULL, "Unable to find Create Textbox sprite", "Error", MB_ICONEXCLAMATION | MB_OK);
+        result = GetLastError();
+        return result;
+    }
     
 
     if (timeBeginPeriod(1) == TIMERR_NOCANDO){
@@ -112,6 +156,15 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         return result;
     }
 
+
+    // Sets Overworlds // 
+
+    Overworld Pokemon_Square = Overworld(POKEMON_SQUARE);
+    Overworld Makuhita_Dojo = Overworld(MAKUHITA_DOJO);    
+    Overworlds[POKEMON_SQUARE] = Pokemon_Square;
+    Overworlds[MAKUHITA_DOJO] = Makuhita_Dojo;
+    LoadOverWorldIntoMemory(POKEMON_SQUARE,"assets\\Overworld\\PokemonSquare\\PSFP.bmp","assets\\Overworld\\PokemonSquare\\");
+    LoadOverWorldIntoMemory(MAKUHITA_DOJO,"assets\\Overworld\\Makuhita_Dojo\\PSFP.bmp","assets\\Overworld\\Makuhita_Dojo\\");
 
     // Sets Main menu Dialogue // 
     MainMenuDialogue.setDialogue(0, 0, "Would you like to load into Amp Plains?"); 
@@ -124,8 +177,17 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     DungeonDialogue.setDialogue(0, 2, ""); 
     DungeonDialogue.setDialogue(0, 3, "opt"); 
 
+
+    MainMenu.addItem("Amp Plains");
+    MainMenu.addItem("Apple Woods");
+    MainMenu.addItem("Desert Cave");
+
+    Load32BppBitmapFromFile("assets\\Player_Sprites\\MakPort.bmp",&PortTest);
+ 
+    
+
     // Setting Dungeons // 
-    Dungeon AmpPlains = Dungeon("Amp Plains","assets\\tiles\\Tiles-Amp-Plains.bmp",10);
+    Dungeon AmpPlains = Dungeon("Amp Plains","assets\\tiles\\Tiles-Amp-Plains.bmp",3);
     Dungeon AppleWoods= Dungeon("Apple Woods","assets\\tiles\\test_tiles.bmp",10);
     Dungeon DesertCave= Dungeon("Desert Cave","assets\\tiles\\Desert.bmp",10);
 
@@ -173,12 +235,6 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     gGameIsRunning = TRUE;
     
 
-    // if (InitNPC() != ERROR_SUCCESS){
-    //     MessageBoxA(NULL, "Error ititalizing NPCs sprite", "Error", MB_ICONEXCLAMATION | MB_OK);
-    //     result = GetLastError();
-    //     return result;
-    // }
-
 
     QueryPerformanceFrequency(&gPreformance_Data.Frequency);
     int64_t elapsedMsPerFrameAccumRaw = 0;
@@ -203,7 +259,7 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         case GAME_LOADING_SCREEN:
             LoadingFrameCount++;
             if(LoadingFrameCount>200){
-                HandGamestateChange(gamestate,GAME_DUNGEON);
+                HandGamestateChange(gamestate,Prvgamestate,Mode);
                 LoadingFrameCount = 0; 
             }
 
@@ -211,8 +267,22 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         
         LoadingFrameCount++;
             if(LoadingFrameCount>200){
-                HandGamestateChange(gamestate,GAME_TITLE_SCREEN);
+                HandGamestateChange(gamestate,GAME_TITLE_SCREEN,Mode);
                 LoadingFrameCount = 0; 
+            }
+            break;
+        
+        case GAME_OVERWORLD:
+        
+        LoadingFrameCount++;
+            if(LoadingFrameCount>20){
+                Background = Overworlds[CurrentOverworld].GetSprite(OverworldFramePointer);
+                OverworldFramePointer++;
+                graphics.SetBackgroundBitMap(&Background);
+                LoadingFrameCount = 0;
+                if(OverworldFramePointer>5){
+                    OverworldFramePointer=0;
+                } 
             }
             break;
         
@@ -222,6 +292,7 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
         process_player_input();
         render_game_frames();
+        NPC_AMV_Handler();
 
         
         QueryPerformanceCounter(&gPreformance_Data.EndingTime);
@@ -277,6 +348,8 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             
             elapsedMsPerFrameAccumCooked = 0;
             elapsedMsPerFrameAccumRaw = 0;
+
+            flicker = flicker^1;
 
         }
         
@@ -446,16 +519,32 @@ VOID process_player_input(void){
         /* code */
         break;
     case GAME_TITLE_SCREEN:
-    
-        
-        if(ShowTextBox == 1 && ShowOptBox == 0){
-            if(A_KeyDown && !a_KeyWasDown){
-                HandleDialog(&MainMenuDialogue) ? ToggleTextBox() : MainMenuDialogue.incrementPage();
-            }
-        }
 
-        else if (ShowOptBox == 1){
-            
+        if(EnterKeyDown && !enter_KeyWasDown ){
+            HandGamestateChange(gamestate,GAME_MAIN_MENU,Mode);
+        }
+        if(A_KeyDown && !a_KeyWasDown ){
+            HandGamestateChange(gamestate,GAME_TEXT_BOX_TESTING,Mode);
+        }
+        
+        break;
+     case GAME_MAIN_MENU:
+     if(A_KeyDown && !a_KeyWasDown){
+                MainMenu.DecrementSelectedItem();
+            }
+    else if(D_KeyDown && !d_KeyWasDown){
+                MainMenu.IncrementSelectedItem();
+            }
+    else if(EnterKeyDown && !enter_KeyWasDown ){
+            HandGamestateChange(gamestate,GAME_LOADING_SCREEN,Mode);
+        }
+     
+     break;
+
+    case GAME_OVERWORLD:
+
+    if(Interaction){
+        if(ShowOptBox){
             if(S_KeyDown && !s_KeyWasDown){
                 HandleOptionSelection(0);
             }
@@ -466,18 +555,177 @@ VOID process_player_input(void){
                 switch (YesNoOptions)
                 {
                 case 0:
-                    HandGamestateChange(gamestate,GAME_LOADING_SCREEN);
+                    ToggleOptBox();
+                    InteractionEnd();
+                    cooldown_frames = 15;
+                    CurrentDialogue.ResetDialogue();
+                    Mode = 1;
+                    HandGamestateChange(gamestate,GAME_DUNGEON,Mode);
+                    
                     break;
                 
                 default:
-                    SendMessageA(gGameWindow,WM_CLOSE,0,0);
+                    ToggleOptBox();
+                    if(HandleDialog(&CurrentDialogue)){
+                    InteractionEnd();
+                    CurrentDialogue.ResetDialogue();
+                    cooldown_frames = 15;
+                    
+                    }
                     break;
                 }
             }
         }
+        else{
+        if(EnterKeyDown && !enter_KeyWasDown){
+        if(HandleDialog(&CurrentDialogue)){
+            InteractionEnd();
+            CurrentDialogue.ResetDialogue();
+            cooldown_frames = 15;
+            
+        }
+       
+        }
+        }
+    }    
+    
+    if (Player.movementRemaining == 0){
+        if(Player.StandingTile.type == FLOOR2){
+            HandleOverworldChange(CurrentOverworld,0);
+        }
         
 
-        break;
+        if (Player.idleFrameCount < 30){
+            Player.animation_step = 0;
+            Player.idleFrameCount++;
+            }
+        
+        else if (Player.idleFrameCount >= 30 && Player.idleFrameCount < 60){
+            Player.animation_step = 3;
+            Player.idleFrameCount++;
+            }
+        
+        else {
+        Player.idleFrameCount = 0;
+        }
+    
+        if (A_KeyDown && !Interaction){
+            Player.direction = DIR_LEFT;
+            if(GetNextPlayerTile(&Player,1) < 5 || Player.noClip == 1){
+            if(!Ctr_KeyDown){
+                Player.animation_step = 1;
+                Player.movementRemaining = 24;
+                Player.idleFrameCount = 0;
+                Player.StandingTile_Index += 1;
+                Player.StandingTile = Background_Tiles[Player.StandingTile_Index];
+            }
+            }
+         
+        }
+        else if (D_KeyDown && !Interaction){
+            Player.direction = DIR_RIGHT;
+            if(GetNextPlayerTile(&Player,2) < 5 || Player.noClip == 1){
+            if(!Ctr_KeyDown){
+                Player.animation_step = 1;
+                Player.movementRemaining = 24;
+                Player.idleFrameCount = 0;
+                Player.StandingTile_Index -= 1;
+                Player.StandingTile = Background_Tiles[Player.StandingTile_Index];
+
+            }}
+        
+        }
+        
+        else if (W_KeyDown && !Interaction){
+            Player.direction = DIR_UP;
+         if(GetNextPlayerTile(&Player,3) < 5 || Player.noClip == 1){
+        if(!Ctr_KeyDown){
+            Player.animation_step = 1;
+            Player.movementRemaining = 24;
+            Player.idleFrameCount = 0;
+            Player.StandingTile_Index -= NUMB_TILES_PER_ROW;
+            Player.StandingTile = Background_Tiles[Player.StandingTile_Index];
+            }
+         }
+        }
+        
+        else if (S_KeyDown && !Interaction){
+        Player.direction = DIR_DOWN;
+        if(GetNextPlayerTile(&Player,0) < 5 || Player.noClip == 1){
+            if(!Ctr_KeyDown){
+            Player.animation_step = 1;
+            Player.movementRemaining = 24;
+            Player.idleFrameCount = 0;
+            Player.StandingTile_Index += NUMB_TILES_PER_ROW;
+            Player.StandingTile = Background_Tiles[Player.StandingTile_Index];
+        }
+        }
+
+    }   else if(EnterKeyDown && !enter_KeyWasDown){
+        if(GetNextPlayerTile(&Player,Player.direction) == 10){
+            
+            switch (Player.direction)
+            {
+            case DIR_DOWN:
+                Loaded_NPCs[CurrentNPCIndex].direction = DIR_UP;
+                break;
+            case DIR_LEFT:
+                Loaded_NPCs[CurrentNPCIndex].direction = DIR_RIGHT;
+                break;
+            case DIR_RIGHT:
+                Loaded_NPCs[CurrentNPCIndex].direction = DIR_LEFT;
+                break;
+            case DIR_UP:
+                Loaded_NPCs[CurrentNPCIndex].direction = DIR_DOWN;
+                break;
+            default:
+                break;
+            }
+            
+            
+            InteractionStart(Player,Loaded_NPCs[CurrentNPCIndex]);            
+            }
+    }
+
+    }
+    
+    else {
+
+
+     switch (Player.direction) {
+        case DIR_DOWN:
+            updatePlayerPosition(Player.worldPosY, TILE_SIZE*-8, TILE_SIZE*8, 120,DIR_DOWN);
+            //UpdateWorldPos(&npc,DIR_DOWN);
+            break;
+        case DIR_LEFT:
+            updatePlayerPosition(Player.worldPosX, TILE_SIZE*-9, TILE_SIZE*9, 200, DIR_LEFT);
+            //UpdateWorldPos(&npc,DIR_LEFT);
+            break;
+        case DIR_RIGHT:
+            updatePlayerPosition(Player.worldPosX, TILE_SIZE*-9, TILE_SIZE*9, 200,DIR_RIGHT);
+            //UpdateWorldPos(&npc,DIR_RIGHT);
+            break;
+        case DIR_UP:
+            updatePlayerPosition(Player.worldPosY, TILE_SIZE*-8, TILE_SIZE*8, 120, DIR_UP);
+            //UpdateWorldPos(&npc,DIR_UP);
+            break;
+        default:
+            break;
+    }
+
+    Player.movementRemaining--;
+
+    if (Player.movementRemaining < 20) {
+        Player.animation_step = 2;
+    }
+
+    if (Player.movementRemaining < 12) {
+        Player.animation_step = 3;
+    }
+    
+    }
+
+    break;
     
     case GAME_DUNGEON:    
 
@@ -648,44 +896,19 @@ VOID process_player_input(void){
     if (espKeyDown){
         SendMessageA(gGameWindow,WM_CLOSE,0,0);
     }
-
+    if(cooldown_frames >0){
+        cooldown_frames--;
+    }
 
 
 
 }
-//"assets\\tiles\\test_tiles.bmp"
-
-
-// DWORD LoadDungeonIntoMemory(char* PathToTileBitmapFile){
-//     DWORD Error = ERROR_SUCCESS;
-//     if(Load32BppBitmapFromFile(PathToTileBitmapFile,&Tile_Sprite_Sheet) != ERROR_SUCCESS){
-//         MessageBoxA(NULL, "Unable to load font sheet into memory", "Error", MB_ICONEXCLAMATION | MB_OK);
-//         Error = GetLastError();
-//         return Error;
-//     }
-
-//     InitTiles(Tile_Sprite_Sheet);
-//     ProceduralGenerator(1000,10,18,Background_Tiles,Tile_Type_Array,10);
-//     BuiltTileMap(Background_Tiles,&Background);
-
-//     graphics.SetBackgroundBitMap(&Background);
-
-
-
-//     if (InitPlayer() != ERROR_SUCCESS){
-//         MessageBoxA(NULL, "Error ititalizing player sprite", "Error", MB_ICONEXCLAMATION | MB_OK);
-//         Error = GetLastError();
-//         return Error;
-//     }
-
-
-
-//     return Error;
-// }
 
 
 DWORD LoadDungeonIntoMemory(Dungeon Dungeon){
     DWORD Error = ERROR_SUCCESS;
+    try{
+
     if(Load32BppBitmapFromFile(Dungeon.getPath(),&Tile_Sprite_Sheet) != ERROR_SUCCESS){
         MessageBoxA(NULL, "Unable to load font sheet into memory", "Error", MB_ICONEXCLAMATION | MB_OK);
         Error = GetLastError();
@@ -706,18 +929,91 @@ DWORD LoadDungeonIntoMemory(Dungeon Dungeon){
         return Error;
     }
 
+    }
+    catch(const std::exception& e) {
+        std::cerr << "Exception caught: " << e.what() << std::endl;
+        
+    }
+
 
 
     return Error;
 }
 
 
+DWORD LoadOverWorldIntoMemory(int32_t index, LPCSTR FloorPlanPath, LPCSTR DirPath){
+    DWORD Error = ERROR_SUCCESS;
+    
+    GAMEBITMAP Temp;
+    for(int i = 1; i < 7; i++){
+        std::string indexStr = std::to_string(i);
+        std::string fullPath = std::string(DirPath) + indexStr + ".bmp";
+        LPCSTR Path = fullPath.c_str();
+      
+
+        if(Load32BppBitmapFromFile(Path,&Temp) != ERROR_SUCCESS){
+            MessageBoxA(NULL, "Unable to load overworld", "Error", MB_ICONEXCLAMATION | MB_OK);
+            Error = GetLastError();
+        return Error;
+        }
+        Overworlds[index].SetSprite(Temp,(i-1));   
+
+    }
+
+    if(Load32BppBitmapFromFile(FloorPlanPath,&Temp) != ERROR_SUCCESS){
+        MessageBoxA(NULL, "Unable to load overworld floorplan", "Error", MB_ICONEXCLAMATION | MB_OK);
+        Error = GetLastError();
+        return Error;
+    }
+    Overworlds[index].SetFloorPlan(Temp);
+
+    return Error;
+}
+
+DWORD SetCurrentOverWorld(Overworld Overworld){
+    DWORD Error = ERROR_SUCCESS;
+    FloorPlan = Overworld.GetFloorPlan();
+    SetTilesOverworld(Background_Tiles,&FloorPlan);
+    Background = Overworld.GetSprite(OverworldFramePointer);
+    graphics.SetBackgroundBitMap(&Background);
+    
+    if (InitPlayerOverWorld() != ERROR_SUCCESS){
+        MessageBoxA(NULL, "Error ititalizing player sprite to Overworld", "Error", MB_ICONEXCLAMATION | MB_OK);
+        Error = GetLastError();
+        return Error;
+    }
+
+    
+
+    if (InitNPC(&Loaded_NPCs[0],"assets\\Player_Sprites\\Walk-Anim-m.bmp","assets\\Player_Sprites\\MakPort.bmp","assets\\dialogue\\makuhita-dialog.txt",MAKUHITA_DOJO,-125,125,-8,-35) != ERROR_SUCCESS){
+        MessageBoxA(NULL, "Error ititalizing player sprite to Overworld", "Error", MB_ICONEXCLAMATION | MB_OK);
+        Error = GetLastError();
+        return Error;
+    }
+    if (InitNPC(&Loaded_NPCs[1],"assets\\Player_Sprites\\Walk-Anim-ch.bmp","assets\\Player_Sprites\\port-ch.bmp","assets\\dialogue\\chatot-dialog.txt",POKEMON_SQUARE,50,0,-14,-23) != ERROR_SUCCESS){
+        MessageBoxA(NULL, "Error ititalizing player sprite to Overworld", "Error", MB_ICONEXCLAMATION | MB_OK);
+        Error = GetLastError();
+        return Error;
+    }
+    //memcpy(&npc,&Loaded_NPCs[0],sizeof(NPC));
+    
+    return Error;
+
+}
+
 VOID HandleStairs(){
+        if(Dungeons[0].getCurrentFloor() >= Dungeons[0].getNumberOfFloors()){
+            LoadingText = "Completed";
+            Mode = 0;
+             HandGamestateChange(gamestate,GAME_OVERWORLD,Mode);
+             
+        }
+        else{
         // Set gamestate and Loading text to whatever floor of the dungeon // 
         Dungeons[0].NextFloor();
         LoadingText = Dungeons[0].getNameWithCurrentFloor();
         
-        HandGamestateChange(gamestate,GAME_LOADING_SCREEN);
+        HandGamestateChange(gamestate,GAME_LOADING_SCREEN,Mode);
 
         // Generate Next floor // 
         ResetTiles(Background_Tiles,Tile_Type_Array);
@@ -726,6 +1022,9 @@ VOID HandleStairs(){
 
         // Init player
         teleportPlayer();
+        ShowTextBox = 0;
+        ShowOptBox = 0;
+        }
 }
 
 void updatePlayerPosition(int32_t& playerPos, int lowerBound, int upperBound, int screenLimit, int direction) {
@@ -802,23 +1101,6 @@ VOID SetWorldPosition(int32_t TileIndex){
     x = (TileIndex%NUMB_TILES_PER_ROW) - (NUMB_TILES_PER_ROW/2);
     y = (TileIndex/NUMB_TILES_PER_ROW) - (NUMB_TILES_PER_ROW/2);
 
-    // if (x >= 41){
-    //     xDifference = x-41;
-    //     x = 41;    
-    // }
-    // else if (x <= (-41)){
-    //     xDifference = x+41;
-    //     x = (-41);
-    //     }
-    
-    // if (y >= 44){
-    //     yDifference = y-44;
-    //     y = 44;
-    // }
-    // else if (y <= (-44)){
-    //     yDifference = y+44;
-    //     y = (-44); 
-    //     }
 
     Player.worldPosX = x;
     Player.worldPosY = y;
@@ -837,6 +1119,12 @@ VOID render_game_frames(void){
     case GAME_TITLE_SCREEN:
         RenderTitleScene();
         break;
+    case GAME_MAIN_MENU:
+        RenderMainMenuScene();
+        break;
+    case GAME_OVERWORLD:
+        RenderOverWorld(&Player);
+        break;
     case GAME_DUNGEON:
         RenderDungeonScene(Background,&Player);
         break;
@@ -844,6 +1132,9 @@ VOID render_game_frames(void){
     case GAME_LOADING_SCREEN:
         RenderLoadingScene(LoadingText);
         break;
+    case GAME_TEXT_BOX_TESTING:
+        RenderTestZone();
+    
     default:
         
         break;
@@ -853,8 +1144,8 @@ VOID render_game_frames(void){
     StretchDIBits(deviceContext,0,0,gMonitorWidth,gMonitorHeight,0,0,GAME_WIDTH,GAME_HEIGHT,DrawingSurface.memory,&DrawingSurface.bitMapInfo,DIB_RGB_COLORS,SRCCOPY);
     
     char fpsBuffer[64] = {0};
-    //sprintf(fpsBuffer, "Cooked FPS: %.01f Raw FPS: %.01f Screen Position: %d:%d, %d ",gPreformance_Data.CookFPS,gPreformance_Data.RawFPS,Player.worldPosX, Player.worldPosY, Player.InRoom);
-    sprintf(fpsBuffer, "Cooked FPS: %.01f Raw FPS: %.01f",gPreformance_Data.CookFPS,gPreformance_Data.RawFPS);
+    sprintf(fpsBuffer, "Cooked FPS: %.01f Raw FPS: %.01f Screen Position: %d:%d, %d %d",gPreformance_Data.CookFPS,gPreformance_Data.RawFPS,Player.worldPosX, Player.worldPosY, Player.StandingTile_Index,IsTileOnScreen(STARTING_TILE));
+    //sprintf(fpsBuffer, "Cooked FPS: %.01f Raw FPS: %.01f",gPreformance_Data.CookFPS,gPreformance_Data.RawFPS);
     SetTextColor(deviceContext, RGB(255, 255, 255));  
     SetBkMode(deviceContext, TRANSPARENT );
     TextOutA( deviceContext, 0, 0, fpsBuffer, strlen( fpsBuffer ) );
@@ -864,6 +1155,36 @@ VOID render_game_frames(void){
 
    
 
+}
+// Animation Movement and Vis // 
+VOID NPC_AMV_Handler(){
+        for (int i = 0; i < Loaded_NPCs.size();i++){
+
+        switch (Loaded_NPCs[i].idleFrameCount)
+        {
+        case 40:
+            Loaded_NPCs[i].animation_step = 0;
+            Loaded_NPCs[i].idleFrameCount++;
+            break;
+        case 80:
+            Loaded_NPCs[i].animation_step = 1;
+            Loaded_NPCs[i].idleFrameCount = 0;
+            break;
+        // case 120:
+        //     Loaded_NPCs[i].animation_step = ;
+        //     Loaded_NPCs[i].idleFrameCount = 0;
+        //     break;
+        // case 175:
+        //     Loaded_NPCs[i].animation_step = 3;
+        //     Loaded_NPCs[i].idleFrameCount = 0;
+        //     break;
+        
+        default:
+            Loaded_NPCs[i].idleFrameCount++;
+            break;
+        }
+        }
+    
 }
 
 
@@ -1034,48 +1355,136 @@ DWORD InitPlayer(VOID){
     return Error;
 }
 
-DWORD InitNPC(VOID){
+DWORD InitPlayerOverWorld(VOID){
+    
     DWORD Error = ERROR_SUCCESS;
-    npc.worldPosX=32;
-    npc.worldPosY=32;
-    npc.movementRemaining = 0;
-    npc.animation_step = 1;
-    npc.direction = DIR_DOWN;
-    npc.idleFrameCount = 0;
+
+
+    Player.worldPosX=0;
+    Player.worldPosY=0;
+    // Player.worldPosY=0-TILE_SIZE*3;
+
+    Player.ScreenPosX = GAME_WIDTH/2;
+    Player.ScreenPosY = GAME_HEIGHT/2;
+    Player.movementRemaining = 0;
+    Player.animation_step = 1;
+    Player.direction = DIR_DOWN;
+    Player.idleFrameCount = 0;
+    // Player.StandingTile = Background_Tiles[STARTING_TILE + (NUMB_TILES_PER_ROW*3)];
+    // Player.StandingTile_Index = STARTING_TILE + (NUMB_TILES_PER_ROW*3);
+    Player.StandingTile = Background_Tiles[STARTING_TILE];
+    Player.StandingTile_Index = STARTING_TILE; 
+    Player.noClip = 0;
+    // Player.InRoom = 1;
+    
+
     
     /* Load player sprites */
     
     
     /* Load player sprites sheets */
-    Error = Load32BppBitmapFromFile("assets\\Player_Sprites\\Walk-Anim.bmp",&npc.sprite_sheet[0]);
-    Error = Load32BppBitmapFromFile("assets\\Player_Sprites\\Idle-Anim.bmp",&npc.sprite_sheet[1]);
+    Error = Load32BppBitmapFromFile("assets\\Player_Sprites\\Walk-Anim.bmp",&Player.sprite_sheet[0]);
+    Error = Load32BppBitmapFromFile("assets\\Player_Sprites\\Idle-Anim.bmp",&Player.sprite_sheet[1]);
 
     /* Walking Animations */
 
     /* Down */
-    Error = LoadSpriteFromSpriteSheet(npc.sprite_sheet[0], &npc.sprite[0][0],8,0,7,0);
-    Error = LoadSpriteFromSpriteSheet(npc.sprite_sheet[0], &npc.sprite[0][1],8,0,7,1);
-    Error = LoadSpriteFromSpriteSheet(npc.sprite_sheet[0], &npc.sprite[0][2],8,0,7,2);
-    Error = LoadSpriteFromSpriteSheet(npc.sprite_sheet[0], &npc.sprite[0][3],8,0,7,4);
+    Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[0][0],8,5,7,0);
+    Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[0][1],8,5,7,1);
+    Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[0][2],8,5,7,2);
+    Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[0][3],8,5,7,4);
 
     /* Left */
-    Error = LoadSpriteFromSpriteSheet(npc.sprite_sheet[0], &npc.sprite[1][0],8,0,1,0);
-    Error = LoadSpriteFromSpriteSheet(npc.sprite_sheet[0], &npc.sprite[1][1],8,0,1,1);
-    Error = LoadSpriteFromSpriteSheet(npc.sprite_sheet[0], &npc.sprite[1][2],8,0,1,2);
-    Error = LoadSpriteFromSpriteSheet(npc.sprite_sheet[0], &npc.sprite[1][3],8,0,1,4);
+    Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[1][0],8,5,1,0);
+    Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[1][1],8,5,1,1);
+    Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[1][2],8,5,1,2);
+    Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[1][3],8,5,1,4);
 
     /* Right */
-    Error = LoadSpriteFromSpriteSheet(npc.sprite_sheet[0], &npc.sprite[2][0],8,0,5,0);
-    Error = LoadSpriteFromSpriteSheet(npc.sprite_sheet[0], &npc.sprite[2][1],8,0,5,1);
-    Error = LoadSpriteFromSpriteSheet(npc.sprite_sheet[0], &npc.sprite[2][2],8,0,5,2);
-    Error = LoadSpriteFromSpriteSheet(npc.sprite_sheet[0], &npc.sprite[2][3],8,0,5,4);
+    Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[2][0],8,5,5,0);
+    Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[2][1],8,5,5,1);
+    Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[2][2],8,5,5,2);
+    Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[2][3],8,5,5,4);
 
     /* Up */
-    Error = LoadSpriteFromSpriteSheet(npc.sprite_sheet[0], &npc.sprite[3][0],8,0,3,0);
-    Error = LoadSpriteFromSpriteSheet(npc.sprite_sheet[0], &npc.sprite[3][1],8,0,3,1);
-    Error = LoadSpriteFromSpriteSheet(npc.sprite_sheet[0], &npc.sprite[3][2],8,0,3,2);
-    Error = LoadSpriteFromSpriteSheet(npc.sprite_sheet[0], &npc.sprite[3][3],8,0,3,4);
+    Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[3][0],8,5,3,0);
+    Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[3][1],8,5,3,1);
+    Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[3][2],8,5,3,2);
+    Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[3][3],8,5,3,4);
     
+    
+
+    if (Error != ERROR_SUCCESS){
+        Error = GetLastError();
+    }
+    return Error;
+}
+
+DWORD InitNPC(NPC* npc, LPCSTR SpriteFilePath,LPCSTR PortraitFilePath, LPCSTR DialogueFilePath, int32_t overworld, int32_t x, int32_t y, int32_t offsetX,int32_t offsetY){
+    DWORD Error = ERROR_SUCCESS;
+    npc->worldPosX=x;
+    npc->worldPosY=y;
+    npc->ScreenPosX=0;
+    npc->ScreenPosY=0;
+    npc->OffsetX = offsetX;
+    npc->OffsetY = offsetY;
+    npc->StandingTile_Index = STARTING_TILE - npc->worldPosX%TILE_SIZE + (npc->worldPosY%TILE_SIZE)*NUMB_TILES_PER_ROW;
+
+    npc->movementRemaining = 0;
+    npc->animation_step = 1;
+    npc->direction = DIR_DOWN;
+    npc->idleFrameCount = 0;
+    npc->overworld = overworld;
+    npc->visbility = 0;
+
+    if(CurrentOverworld == npc->overworld){
+        npc->visbility = 1;
+    }
+    
+    /* Load player sprites */
+    
+    
+    /* Load player sprites sheets */
+    Error = Load32BppBitmapFromFile(SpriteFilePath,&npc->sprite_sheet[0]);
+    Error = Load32BppBitmapFromFile(PortraitFilePath,&npc->Portrait);
+    
+
+    /* Walking Animations */
+
+    /* Down */
+    Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[0][0],8,4,7,0);
+    Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[0][1],8,4,7,1);
+    Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[0][2],8,4,7,2);
+    Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[0][3],8,4,7,3);
+
+    /* Left */
+    Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[1][0],8,0,1,0);
+    Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[1][1],8,0,1,1);
+    Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[1][2],8,0,1,2);
+    Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[1][3],8,0,1,3);
+
+    /* Right */
+    Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[2][0],8,0,5,0);
+    Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[2][1],8,0,5,1);
+    Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[2][2],8,0,5,2);
+    Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[2][3],8,0,5,3);
+
+    /* Up */
+    Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[3][0],8,0,3,0);
+    Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[3][1],8,0,3,1);
+    Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[3][2],8,0,3,2);
+    Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[3][3],8,0,3,3);
+
+
+    if (!npc->Dialogue.IsSet()){
+    npc->Dialogue = Dialogue();
+    setDialogFromTextFile(&npc->Dialogue,DialogueFilePath);
+    npc->Dialogue.Set();
+    }
+
+
+    
+
 
     if (Error != ERROR_SUCCESS){
         Error = GetLastError();
@@ -1206,6 +1615,13 @@ int32_t GetNextPlayerTile(PLAYER *player,int32_t Direction){
         }
     
         //printf("next tile: %d\n",tileIndex);
+        for (int i = 0; i < Loaded_NPCs.size();i++){
+            if(tileIndex == Loaded_NPCs[i].StandingTile_Index && Loaded_NPCs[i].visbility ==1){
+                CurrentNPCIndex = i;
+            return 10;
+        }
+        }
+        
         return Background_Tiles[tileIndex].type;
         
         
@@ -1254,439 +1670,6 @@ VOID BuiltTileMap(TILE* Tile_Array,GAMEBITMAP* backgroundBitMap){
 }
 
 
-// VOID LoadBackgroundToScreen(GAMEBITMAP BackgroundBitMap){
-//     int32_t Starting_Coordinate = ((GAME_HEIGHT*GAME_WIDTH) - GAME_WIDTH);
-
-//     int32_t TilesPerScreenH = GAME_WIDTH/TILE_SIZE; // 16
-//     int32_t TilesPerScreenV = GAME_HEIGHT/TILE_SIZE; // 10
-
-//     int32_t StartingCol = STARTING_TILE%NUMB_TILES_PER_ROW;
-//     int32_t StartingRow = STARTING_TILE/NUMB_TILES_PER_ROW;
-
-//     int32_t HorizontalMapOffset = (NUMB_TILES_PER_ROW - TilesPerScreenH) / 2;
-//     int32_t VerticalMapOffset = (NUMB_TILES_PER_ROW/TilesPerScreenV) /2 ;
-//     int32_t Starting_Coordinate_Bitmap = ((BackgroundBitMap.bitMapInfo.bmiHeader.biWidth*BackgroundBitMap.bitMapInfo.bmiHeader.biHeight)/2)  + (BackgroundBitMap.bitMapInfo.bmiHeader.biWidth*TILE_SIZE*VerticalMapOffset +TILE_SIZE*HorizontalMapOffset);
-
-
-//     int32_t BitMapOffset = 0;
-//     int32_t BitMapStart = 0;
-
-
-//     int32_t PlayerYOffset = Player.worldPosY;
-//     int32_t PlayerXOffset = Player.worldPosX;
-
-    
-    
-//     if (PlayerXOffset >= 41 * TILE_SIZE){
-//         PlayerXOffset = 41 * TILE_SIZE;
-//     }
-
-//     else if (PlayerXOffset <= (-41 * TILE_SIZE)){
-//         PlayerXOffset = (-41 * TILE_SIZE);
-//     }
-
-    
-    
-//      if (PlayerYOffset >= 44 * TILE_SIZE){
-//         PlayerYOffset = 44 * TILE_SIZE;
-//     }
-
-//     else if (PlayerYOffset <= (-44 * TILE_SIZE)){
-//         PlayerYOffset = (-44 * TILE_SIZE);
-//     }
-    
-//     BitMapStart = Starting_Coordinate_Bitmap + (PlayerYOffset*BackgroundBitMap.bitMapInfo.bmiHeader.biWidth) + PlayerXOffset;
-  
-    
-    
-//     int32_t MemoryOffset = 0;
-//     PIXEL BitmapPixels = {0};
-    
-    
-//     FLOAT darkenFactor = 0.7f;
-//     int32_t circleRadius;
-//     switch (Player.InRoom)
-//     {
-//     case 0:
-//         circleRadius = 50;
-//         break;
-    
-//     default:
-//         circleRadius = 14*TILE_SIZE;
-//         break;
-//     }
-    
-
-//     int32_t circleRadiusSquared = circleRadius * circleRadius;
-
-
-//     for(int32_t PixelY = 0; PixelY < GAME_HEIGHT; PixelY++){
-//         for(int32_t PixelX = 0; PixelX < GAME_WIDTH; PixelX++){
-//             int32_t dx = PixelX - Player.ScreenPosX - 4;
-//             int32_t dy = PixelY - Player.ScreenPosY - 11;
-            
-//             // Calculate the squared distance from the current pixel to the player
-//             int32_t distanceSquared = dx * dx + dy * dy;
-
-//             MemoryOffset = Starting_Coordinate + PixelX - (GAME_WIDTH*PixelY);
-//             BitMapOffset = BitMapStart + PixelX - (BackgroundBitMap.bitMapInfo.bmiHeader.biWidth * PixelY);
-            
-//             memcpy(&BitmapPixels,(PIXEL*)BackgroundBitMap.memory + BitMapOffset,sizeof(PIXEL));
-//             if (distanceSquared > circleRadiusSquared) {
-//                 BitmapPixels.red *= darkenFactor;
-//                 BitmapPixels.green *= darkenFactor;
-//                 BitmapPixels.blue *= darkenFactor;
-//             }
-            
-           
-//             memcpy((PIXEL*)DrawingSurface.memory + MemoryOffset,&BitmapPixels,sizeof(PIXEL));
-            
-
-//         }
-//     }
-
-// }
-
-// VOID LoadBackScreen(){
-//     int32_t MemoryOffset = 0;
-//     int32_t Starting_Coordinate = GAME_WIDTH*GAME_HEIGHT - GAME_WIDTH;
-//     PIXEL p = {0};
-    
-//     for(int32_t PixelY = 0; PixelY < GAME_HEIGHT; PixelY++){
-//         for(int32_t PixelX = 0; PixelX < GAME_WIDTH; PixelX++){
-
-//             MemoryOffset = Starting_Coordinate + PixelX - (GAME_WIDTH*PixelY);
-//             memcpy((PIXEL*)DrawingSurface.memory + MemoryOffset,&p,sizeof(PIXEL));
-            
-    
-//         }
-//     }
-    
-
-// }
-
-
-
-// VOID LoadBitMapToScreen(GAMEBITMAP GameBitMap, int16_t x, int16_t y, int16_t VerticalOffset,int16_t HorizontalOffset){
-//     x += HorizontalOffset;
-//     y += VerticalOffset;
-//     int32_t Starting_Coordinate = ((GAME_HEIGHT*GAME_WIDTH) - GAME_WIDTH) - (GAME_WIDTH*y) + x;
-//     int32_t Starting_BitMapPixel = (GameBitMap.bitMapInfo.bmiHeader.biHeight * GameBitMap.bitMapInfo.bmiHeader.biWidth) - GameBitMap.bitMapInfo.bmiHeader.biWidth;
-//     int32_t MemoryOffset = 0;
-//     int32_t BitMapOffset = 0;
-//     PIXEL BitmapPixels = {0};
-//     PIXEL BackgroundPixels = {0};
-
-    
-//     for(int32_t PixelY = 0; PixelY < GameBitMap.bitMapInfo.bmiHeader.biHeight; PixelY++){
-//         for(int32_t PixelX = 0; PixelX < GameBitMap.bitMapInfo.bmiHeader.biWidth; PixelX++){
-//             //int32_t offset = (Starting_Coordinate + x) - (GAME_WIDTH*y);
-
-//             MemoryOffset = Starting_Coordinate + PixelX - (GAME_WIDTH*PixelY);
-//             BitMapOffset = Starting_BitMapPixel + PixelX - (GameBitMap.bitMapInfo.bmiHeader.biWidth * PixelY);
-
-//             memcpy(&BitmapPixels,(PIXEL*)GameBitMap.memory + BitMapOffset,sizeof(PIXEL));
-//             if (BitmapPixels.alpha == 255){
-//                 memcpy((PIXEL*)DrawingSurface.memory + MemoryOffset,&BitmapPixels,sizeof(PIXEL));
-//             }
-            
-
-//         }
-//     }
-
-// }
-
-
-
-// void LoadBitFontToScreen(GAMEBITMAP GameBitMap, const std::string& str, int16_t x, int16_t y, int16_t center) {
-    
-//     // char* str = string.cstr();
-//     int charWidth = GameBitMap.bitMapInfo.bmiHeader.biWidth / 13;
-//     int charHeight = GameBitMap.bitMapInfo.bmiHeader.biHeight/ 12;
-
-//     int bytesPerChar = 4 * charWidth * charHeight;
-//     int StringLength = str.length();
-    
-//     GAMEBITMAP stingBitMap = {0};
-    
-//     stingBitMap.bitMapInfo.bmiHeader.biBitCount = GAME_BPP;
-//     stingBitMap.bitMapInfo.bmiHeader.biWidth = charWidth*StringLength;
-//     stingBitMap.bitMapInfo.bmiHeader.biHeight = charHeight;
-//     stingBitMap.bitMapInfo.bmiHeader.biCompression = 0;
-//     stingBitMap.bitMapInfo.bmiHeader.biPlanes = 1;
-    
-//     stingBitMap.memory = HeapAlloc(GetProcessHeap(),HEAP_ZERO_MEMORY,bytesPerChar * StringLength);
-    
-
-//     for (int i = 0; i < StringLength; i++){
-//         int Starting_Address = 0;
-//         int FontSheetOffset = 0;
-//         int StrBitMapOffset = 0;
-//         PIXEL FontSheetPixels = {0};
-
-       
-
-//         /* Starting address = SheetWidth * SheetHeight - (SheetWidth * CharHeight * Row) + (CharWidth * Col) */
-        
-//         switch(str[i]){
-//             case 'a':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - GameBitMap.bitMapInfo.bmiHeader.biWidth + (charWidth * 0);
-//             break;
-//             case 'b':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - GameBitMap.bitMapInfo.bmiHeader.biWidth + (charWidth * 1);
-//             break;
-//             case 'c':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - GameBitMap.bitMapInfo.bmiHeader.biWidth + (charWidth * 2);
-//             break;
-//             case 'd':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - GameBitMap.bitMapInfo.bmiHeader.biWidth + (charWidth * 3);
-//             break;
-//             case 'e':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - GameBitMap.bitMapInfo.bmiHeader.biWidth + (charWidth * 4);
-//             break;
-//             case 'f':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - GameBitMap.bitMapInfo.bmiHeader.biWidth + (charWidth * 5);
-//             break;
-//             case 'g':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - GameBitMap.bitMapInfo.bmiHeader.biWidth + (charWidth * 6);
-//             break;
-//             case 'h':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - GameBitMap.bitMapInfo.bmiHeader.biWidth + (charWidth * 7);
-//             break;
-//             case 'i':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - GameBitMap.bitMapInfo.bmiHeader.biWidth + (charWidth * 8);
-//             break;
-//             case 'j':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - GameBitMap.bitMapInfo.bmiHeader.biWidth + (charWidth * 9);
-//             break;
-//             case 'k':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - GameBitMap.bitMapInfo.bmiHeader.biWidth + (charWidth * 10);
-//             break;
-//             case 'l':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - GameBitMap.bitMapInfo.bmiHeader.biWidth + (charWidth * 11);
-//             break;
-//             case 'm':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - GameBitMap.bitMapInfo.bmiHeader.biWidth + (charWidth * 12);
-//             break;
-//             case 'n':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 1) + (charWidth * 0);
-//             break;
-//             case 'o':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 1) + (charWidth * 1);
-//             break;
-//             case 'p':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 1) + (charWidth * 2);
-//             break;
-//             case 'q':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 1) + (charWidth * 3);
-//             break;
-//             case 'r':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 1) + (charWidth * 4);
-//             break;
-//             case 's':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 1) + (charWidth * 5);
-//             break;
-//             case 't':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 1) + (charWidth * 6);
-//             break;
-//             case 'u':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 1) + (charWidth * 7);
-//             break;
-//             case 'v':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 1) + (charWidth * 8);
-//             break;
-//             case 'w':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 1) + (charWidth * 9);
-//             break;
-//             case 'x':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 1) + (charWidth * 10);
-//             break;
-//             case 'y':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 1) + (charWidth * 11);
-//             break;
-//             case 'z':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 1) + (charWidth * 12);
-//             break;
-//             case 'A':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 2) + (charWidth * 0);
-//             break;
-//             case 'B':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 2) + (charWidth * 1);
-//             break;
-//             case 'C':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 2) + (charWidth * 2);
-//             break;
-//             case 'D':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 2) + (charWidth * 3);
-//             break;
-//             case 'E':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 2) + (charWidth * 4);
-//             break;
-//             case 'F':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 2) + (charWidth * 5);
-//             break;
-//             case 'G':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 2) + (charWidth * 6);
-//             break;
-//             case 'H':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 2) + (charWidth * 7);
-//             break;
-//             case 'I':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 2) + (charWidth * 8);
-//             break;
-//             case 'J':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 2) + (charWidth * 9);
-//             break;
-//             case 'K':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 2) + (charWidth * 10);
-//             break;
-//             case 'L':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 2) + (charWidth * 11);
-//             break;
-//             case 'M':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 2) + (charWidth * 12);
-//             break;
-//             case 'N':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 3) + (charWidth * 0);
-//             break;
-//             case 'O':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 3) + (charWidth * 1);
-//             break;
-//             case 'P':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 3) + (charWidth * 2);
-//             break;
-//             case 'Q':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 3) + (charWidth * 3);
-//             break;
-//             case 'R':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 3) + (charWidth * 4);
-//             break;
-//             case 'S':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 3) + (charWidth * 5);
-//             break;
-//             case 'T':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 3) + (charWidth * 6);
-//             break;
-//             case 'U':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 3) + (charWidth * 7);
-//             break;
-//             case 'V':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 3) + (charWidth * 8);
-//             break;
-//             case 'W':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 3) + (charWidth * 9);
-//             break;
-//             case 'X':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 3) + (charWidth * 10);
-//             break;
-//             case 'Y':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 3) + (charWidth * 11);
-//             break;
-//             case 'Z':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 3) + (charWidth * 12);
-//             break;
-//             case '1':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 4) + (charWidth * 0 );
-//             break;
-//             case '2':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 4) + (charWidth * 1);
-//             break;
-//             case '3':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 4) + (charWidth * 2);
-//             break;
-//             case '4':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 4) + (charWidth * 3);
-//             break;
-//             case '5':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 4) + (charWidth * 4);
-//             break;
-//             case '6':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 4) + (charWidth * 5);
-//             break;
-//             case '7':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 4) + (charWidth * 6);
-//             break;
-//             case '8':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 4) + (charWidth * 7);
-//             break;
-//             case '9':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 4) + (charWidth * 8);
-//             break;
-//             case '0':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 4) + (charWidth * 9);
-//             break;
-//             case ':':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 4) + (charWidth * 10);
-//             break;
-//             case '+':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 4) + (charWidth * 11);
-//             break;
-//             case '-':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 4) + (charWidth * 12);
-//             break;
-//             case ',':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 5) + (charWidth * 0);
-//             break;
-//             case '.':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 5) + (charWidth * 2);
-//             break;
-//             case '!':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 5) + (charWidth * 4);
-//             break;
-//             case '?':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 5) + (charWidth * 5);
-//             break;
-//             case '\'':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 5) + (charWidth * 6);
-//             break;
-//             case ' ':
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 12) + (charWidth * 10);
-//             break;
-
-//             default:
-//             // ? // 
-//             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 5) + (charWidth * 2);
-
-//         }
-
-        
-//         for(int32_t PixelY = 0; PixelY < charHeight; PixelY++){
-            
-//             for(int32_t PixelX =0 ; PixelX < charWidth; PixelX++){
-            
-//             FontSheetOffset = (Starting_Address + PixelX) - (GameBitMap.bitMapInfo.bmiHeader.biWidth*PixelY);
-//             StrBitMapOffset = (i*7) + ((stingBitMap.bitMapInfo.bmiHeader.biHeight*stingBitMap.bitMapInfo.bmiHeader.biWidth) - stingBitMap.bitMapInfo.bmiHeader.biWidth) + PixelX - (stingBitMap.bitMapInfo.bmiHeader.biWidth* PixelY);
-            
-//             memcpy(&FontSheetPixels,(PIXEL*)GameBitMap.memory + FontSheetOffset,sizeof(PIXEL));
-//             if(FontSheetPixels.alpha == 255){
-//                 memcpy((PIXEL*)stingBitMap.memory + StrBitMapOffset,&FontSheetPixels,sizeof(PIXEL));
-//             }
-//         }
-        
-//     }
-    
-
-//     }
-     
-//     int32_t xOffset = (charWidth*(StringLength)/4);
-//     switch (center)
-//     {
-//     case 1:
-//         LoadBitMapToScreen(stingBitMap,x,y,0,-xOffset);
-//         break;
-    
-//     default:
-//         LoadBitMapToScreen(stingBitMap,x,y,0,0);
-//         break;
-//     }
-        
-//     if(stingBitMap.memory){
-//         HeapFree(GetProcessHeap(),0,stingBitMap.memory);
-//     }
-    
-
-// }
-
 DWORD LoadSpriteFromSpriteSheet(GAMEBITMAP SpriteSheet, GAMEBITMAP *player_spite_box, int16_t SpriteCountRow,int16_t SpriteCountCol, int16_t Row, int16_t Col){
     DWORD Error = ERROR_SUCCESS;
     int32_t Starting_Address = 0;
@@ -1734,6 +1717,7 @@ VOID RenderDungeonScene(GAMEBITMAP BackgroundBitMap, PLAYER* Player){
     
     graphics.LoadBackgroundToScreen();
     graphics.LoadBitMapToScreen(Player->sprite[Player->direction][Player->animation_step],Player->ScreenPosX,Player->ScreenPosY,-20,-12);
+    
      
      switch (ShowTextBox)
     {
@@ -1760,27 +1744,61 @@ VOID RenderTitleScene(){
 
     graphics.LoadBackScreen();
     graphics.LoadBitFontToScreen(Font,"Project B - Alpha", GAME_WIDTH/2, GAME_HEIGHT/2,1);
-
-    switch (ShowTextBox)
+    switch (flicker)
     {
     case 1:
-        DisplayTextBox(TextBox,MainMenuDialogue);
+        graphics.LoadBitFontToScreen(Font,"Press Enter to continue", GAME_WIDTH/2, GAME_HEIGHT/2 + 15,1);
+        break;
+    
+    default:
+        break;
+    }
+    
+       
+
+}
+
+
+
+VOID RenderOverWorld(PLAYER* Player){
+    
+    graphics.LoadOverWorldToDrawingSurface();
+    // graphics.LoadBitMapToScreen(Player->sprite[Player->direction][Player->animation_step],Player->ScreenPosX,Player->ScreenPosY,-20,-12);
+    for(int i =0; i < 2; i++){
+        if(Loaded_NPCs[i].visbility == 1){
+        WorldPosBasedRender(&Loaded_NPCs[i],Player);   
+    }
+
+    }
+
+     graphics.LoadBitMapToScreen(Player->sprite[Player->direction][Player->animation_step],Player->ScreenPosX,Player->ScreenPosY,-20,-12);
+
+    switch (Interaction)
+    {
+    case TRUE:
+            DisplayTextBox(TextBox,CurrentDialogue);
+            DisplayPortrait(CurrentPortrait);
+            DisplayOptBox(OptionBox);
         break;
     
     default:
         break;
     }
 
-    switch (ShowOptBox)
-    {
-    case 1:
-        DisplayOptBox(OptionBox);
-        break;
-    
-    default:
-        break;
-    }
    
+    
+    
+    
+    //graphics.LoadScreenBlackBars();
+}
+
+VOID RenderMainMenuScene(){
+
+    graphics.LoadBackScreen();
+    graphics.LoadBitFontToScreen(Font,"Select a Dungeon", GAME_WIDTH/2, GAME_HEIGHT/2,1);
+    DisplayMainMenuToScreen(MainMenu,45,180);
+    // graphics.LoadBackScreen();
+    // graphics.LoadOverWorldToDrawingSurface();
 
 }
 
@@ -1789,21 +1807,44 @@ VOID RenderLoadingScene(char* str){
     graphics.LoadBitFontToScreen(Font,str, GAME_WIDTH/2, GAME_HEIGHT/2,1);
 }
 
+
+VOID RenderTestZone(){
+    graphics.LoadBackScreen();
+    graphics.LoadBitFontToScreen(Font,"Testing Zone", GAME_WIDTH/2, 24,1);
+    DisplayTextBox(TextBox,TestingDialogue);
+    DisplayOptBox(OptionBox);
+    DisplayPortrait(PortTest);
+}
+
+
 VOID DisplayTextBox(GAMEBITMAP TextBox, Dialogue Dialogue) {
-     int32_t x = 42;
-     int32_t y = 182;
-     graphics.LoadBitMapToScreen(TextBox, 40, 180, 0, 0);
-     
+    if(ShowTextBox){
+    int32_t x = 40;
+    int32_t y = 180;
+    graphics.LoadBitMapToScreen(TextBox, x, y, 0, 0);
+     if(Dialogue.getDialogue(Dialogue.getCurrentPage(),3) == "opt"){
+            ShowOptBox = 1;
+    }
+    else if (Dialogue.getDialogue(Dialogue.getCurrentPage(),3) == "menu"){
+        // Toggle current menu //
+    }
+
+
 
     for (int i = 0; i < 3; i++){
-        
-        graphics.LoadBitFontToScreen(Font, Dialogue.getDialogue(Dialogue.getCurrentPage(),i), x, y, 0);
+        graphics.LoadBitFontToScreen(Font, Dialogue.getDialogue(Dialogue.getCurrentPage(),i), x+1, y+1, 0);
         y += 10;
+    }
     }
     
 }
 
 VOID DisplayOptBox(GAMEBITMAP OptionBox) {
+
+    if(ShowOptBox){
+        
+    
+
      int32_t x = 312;
      int32_t y = 140;
 
@@ -1823,7 +1864,13 @@ VOID DisplayOptBox(GAMEBITMAP OptionBox) {
         graphics.LoadBitFontToScreen(Font,"-", x+2, y+14, 0);
         break;
     }
+    }
     
+}
+
+VOID DisplayPortrait(GAMEBITMAP Portrait){
+    graphics.LoadBitMapToScreen(PortraitBox, 40, 130, 0, 0);
+    graphics.LoadBitMapToScreen(Portrait, 44, 133, 0, 0);
 }
 
 
@@ -1833,7 +1880,7 @@ BOOL HandleDialog(Dialogue* Dialogue){
         return TRUE;
     }
     else{
-
+        Dialogue->incrementPage();
         return FALSE;
     }
 }
@@ -1860,49 +1907,106 @@ VOID ToggleOptBox(){
     ShowOptBox = ShowOptBox^1;
 }
 
-VOID HandGamestateChange(GAMESTATE CurrentGameState, GAMESTATE Next){
-    switch (CurrentGameState)
+VOID HandGamestateChange(GAMESTATE Current, GAMESTATE Next, int32_t Mode){
+    
+
+    switch (Current)
     {
+
     case GAME_OPENING:
+
         gamestate = GAME_TITLE_SCREEN;
         break;
-    case GAME_TITLE_SCREEN:
+    
+    case GAME_MAIN_MENU:
+    
         ToggleTextBox();
         ToggleOptBox();
+        LoadDungeonIntoMemory(Dungeons[MainMenu.getSelectedItem()]);      
+        gamestate = GAME_LOADING_SCREEN;
+        break;
+    
+    case GAME_TITLE_SCREEN:
+
+        switch (Next)
+        {
+        case GAME_TEXT_BOX_TESTING:
+            gamestate = GAME_TEXT_BOX_TESTING;
+            break;
+        case GAME_MAIN_MENU:
+            gamestate = GAME_MAIN_MENU;
+        
+        default:
+        SetCurrentOverWorld(Overworlds[CurrentOverworld]);
+        gamestate = GAME_OVERWORLD;
+        break;
+        
+        }
+        
+        break;
+    
+     case GAME_OVERWORLD:
+        
+
+        switch (Mode)
+        {
+
+        case 0:
+            // Stay in Overworld //
+            LoadingText = "";
+            Prvgamestate = GAME_OVERWORLD;
+            gamestate = GAME_LOADING_SCREEN;
+            break;
+        
+        case 1:
+        // Switching to Dung // 
+        ToggleTextBox();
+        LoadingText = Dungeons[0].getNameWithCurrentFloor();
         LoadDungeonIntoMemory(Dungeons[0]);      
         gamestate = GAME_LOADING_SCREEN;
         break;
-
+        
+        default:
+            break;
+        }
+        
+        break;
+        
     case GAME_DUNGEON:
         
-        switch (Next)
+        switch (Mode)
         {
-        case GAME_LOADING_SCREEN:
-            ToggleTextBox();
-            ToggleOptBox();  
-            gamestate = GAME_LOADING_SCREEN;
-            
+        case 1:
+            // Stay in Dung //
+            gamestate = GAME_LOADING_SCREEN;            
             break;
-        case GAME_TITLE_SCREEN:
-            /* code */
+        case 0:
+            // Switching to Overworld // 
+            SetCurrentOverWorld(Overworlds[CurrentOverworld]);
+            Dungeons[0].Reset();
+            ShowTextBox = 1;
+            ShowOptBox = 0;
+            gamestate = GAME_LOADING_SCREEN;
             break;
         
         default:
+            
             break;
         }
 
 
         break;
+
     case GAME_LOADING_SCREEN:
 
-        switch (Next)
+        switch (Mode)
         {
-        case GAME_DUNGEON:
+        case 1:
             
             gamestate = GAME_DUNGEON;
             break;
-        case GAME_TITLE_SCREEN:
-            /* code */
+        case 0:
+            gamestate = GAME_OVERWORLD;
             break;
         
         default:
@@ -1916,3 +2020,118 @@ VOID HandGamestateChange(GAMESTATE CurrentGameState, GAMESTATE Next){
         break;
     }
 }
+
+VOID DisplayMainMenuToScreen(Menu menu, int32_t x, int32_t y){
+    int32_t distance = GAME_WIDTH/(menu.GetCount()+1);
+    int32_t start = GAME_WIDTH*GAME_HEIGHT - GAME_WIDTH;
+    int32_t offset = 0;
+
+    for(int32_t i = 0; i < menu.GetCount();i++){
+        graphics.LoadBitFontToScreen(Font,menu.GetItemContent(i), x, y, 0);
+        if(menu.getSelectedItem() == i){
+        offset = start + (x+4) - ((y+12)*GAME_WIDTH);
+        memset((PIXEL*)DrawingSurface.memory + offset,255,sizeof(PIXEL)*(distance-25));
+        }
+        x+=distance;
+   
+    }
+}
+
+VOID HandleOverworldChange(int32_t Current, int32_t Direction){
+    
+    switch (Current)
+    {
+    case POKEMON_SQUARE:
+        CurrentOverworld++;
+        HandGamestateChange(GAME_OVERWORLD,GAME_LOADING_SCREEN,Mode);
+        SetCurrentOverWorld(Overworlds[CurrentOverworld]);
+        
+
+        break;
+    case MAKUHITA_DOJO:
+        CurrentOverworld--;
+        HandGamestateChange(GAME_OVERWORLD,GAME_LOADING_SCREEN,Mode);
+        SetCurrentOverWorld(Overworlds[CurrentOverworld]);
+        Player.worldPosY -= 9*TILE_SIZE;
+        Player.direction = 3;
+        Player.StandingTile_Index = 5950;
+        Player.StandingTile = Background_Tiles[5950];
+        break;
+    
+    default:
+        break;
+    }        
+}
+
+
+BOOLEAN IsTileOnScreen(int32_t TileIndex) {
+    int32_t left_limit = Player.StandingTile_Index % 100 + GAME_WIDTH / (2 * TILE_SIZE);
+    int32_t right_limit = Player.StandingTile_Index % 100 - GAME_WIDTH / (2 * TILE_SIZE);
+    int32_t top_limit = Player.StandingTile_Index / 100 + GAME_HEIGHT / (2 * TILE_SIZE);
+    int32_t bot_limit = Player.StandingTile_Index / 100 - GAME_HEIGHT / (2 * TILE_SIZE);
+
+    return (TileIndex%100 <= left_limit && TileIndex%100 >= right_limit && TileIndex/100 <= top_limit+1 && TileIndex/100 >= bot_limit-1);
+}
+
+
+VOID WorldPosBasedRender(NPC* npc, PLAYER* p){
+    // calulate npc screen pos based on relative player tile // 
+
+
+    
+    npc->ScreenPosX = npc->worldPosX - p->worldPosX + (GAME_WIDTH/2);
+    npc->ScreenPosY = npc->worldPosY + p->worldPosY + (GAME_HEIGHT/2);
+    graphics.LoadBitMapToScreen(npc->sprite[npc->direction][npc->animation_step],npc->ScreenPosX,npc->ScreenPosY,npc->OffsetY,npc->OffsetX);
+
+
+}
+
+
+VOID InteractionStart(PLAYER Player, NPC NPC){
+    
+    if(cooldown_frames != 0){
+        return;
+    }
+
+    CurrentDialogue.setNumberOfPages(NPC.Dialogue.getNumberOfPages());
+    for (int32_t i = 0; i < NPC.Dialogue.getNumberOfPages();i++){
+        for (int32_t j = 0; j < 4; j++){
+            CurrentDialogue.setDialogue(i,j,NPC.Dialogue.getDialogue(i,j));
+        }
+        
+    }
+    
+    CurrentPortrait = NPC.Portrait;
+    Interaction = TRUE;    
+}
+
+
+VOID InteractionEnd(){
+    //CurrentDialogue = {0};
+    CurrentPortrait = {0};
+    Interaction = FALSE;  
+    ShowOptBox = 0;  
+}
+
+
+DWORD setDialogFromTextFile(Dialogue* D, LPCSTR FileName){
+    std::ifstream file(FileName);
+    std::string str;
+
+    std::getline(file, str);
+    D->setNumberOfPages(stoi(str));
+    for (int i = 0; i < D->getNumberOfPages(); i++){
+        for (int j = 0; j < 4; j++){
+            if(std::getline(file, str)){
+                if(str != "//"){
+                D->setDialogue(i,j,str);
+                }
+                else{
+                    D->setDialogue(i,j,"");
+                }
+            }
+        }
+    }
+
+}
+

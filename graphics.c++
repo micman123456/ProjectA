@@ -40,6 +40,22 @@ public:
         }
     }
 
+    VOID LoadScreenBlackBars(){
+    int32_t MemoryOffset = 0;
+    int32_t Starting_Coordinate = GAME_WIDTH*GAME_HEIGHT - GAME_WIDTH;
+    PIXEL p = {0};
+    
+    for(int32_t PixelY = 0; PixelY < GAME_HEIGHT; PixelY++){
+        for(int32_t PixelX = 0; PixelX < GAME_WIDTH; PixelX++){
+            if(PixelX < 40 || PixelX > GAME_WIDTH-40 || PixelY < 24 || PixelY > GAME_HEIGHT - 24){            
+            MemoryOffset = Starting_Coordinate + PixelX - (GAME_WIDTH*PixelY);
+            memcpy((PIXEL*)DrawingSurface->memory + MemoryOffset,&p,sizeof(PIXEL));
+            }
+
+            }
+        }
+    }
+
 
     VOID LoadBackgroundToScreen(){
     int32_t Starting_Coordinate = ((GAME_HEIGHT*GAME_WIDTH) - GAME_WIDTH);
@@ -134,6 +150,69 @@ public:
 
 }
 
+
+VOID LoadOverWorldToDrawingSurface(){
+    
+
+    int32_t MemoryOffset = 0;
+    int32_t BitMapOffset = 0;
+    PIXEL BitmapPixels = {0};
+
+    
+
+    int32_t Starting_Coordinates = ((GAME_HEIGHT*GAME_WIDTH) - GAME_WIDTH);
+
+    int32_t TilesPerScreenH = GAME_WIDTH/TILE_SIZE; // 16
+    int32_t TilesPerScreenV = GAME_HEIGHT/TILE_SIZE; // 10
+
+    int32_t StartingCol = STARTING_TILE%NUMB_TILES_PER_ROW;
+    int32_t StartingRow = STARTING_TILE/NUMB_TILES_PER_ROW;
+
+    int32_t HorizontalMapOffset = (NUMB_TILES_PER_ROW - TilesPerScreenH) / 2;
+    int32_t VerticalMapOffset = (NUMB_TILES_PER_ROW/TilesPerScreenV) /2 ;
+    int32_t Starting_Coordinate_Bitmap = ((BackgroundBitMap->bitMapInfo.bmiHeader.biWidth*BackgroundBitMap->bitMapInfo.bmiHeader.biHeight)/2)  + (BackgroundBitMap->bitMapInfo.bmiHeader.biWidth*TILE_SIZE*VerticalMapOffset +TILE_SIZE*HorizontalMapOffset);
+
+    int32_t PlayerYOffset = Player->worldPosY;
+    int32_t PlayerXOffset = Player->worldPosX;
+    
+    if (PlayerXOffset >= 41 * TILE_SIZE){
+        PlayerXOffset = 41 * TILE_SIZE;
+    }
+
+    else if (PlayerXOffset <= (-41 * TILE_SIZE)){
+        PlayerXOffset = (-41 * TILE_SIZE);
+    }
+
+    
+    
+     if (PlayerYOffset >= 44 * TILE_SIZE){
+        PlayerYOffset = 44 * TILE_SIZE;
+    }
+
+    else if (PlayerYOffset <= (-44 * TILE_SIZE)){
+        PlayerYOffset = (-44 * TILE_SIZE);
+    }
+
+    int32_t BitMapStart = Starting_Coordinate_Bitmap + (PlayerYOffset*BackgroundBitMap->bitMapInfo.bmiHeader.biWidth) + PlayerXOffset;
+
+
+    for(int32_t PixelY = 0; PixelY < GAME_HEIGHT; PixelY++){
+        for(int32_t PixelX = 0; PixelX < GAME_WIDTH; PixelX++){
+
+            MemoryOffset = Starting_Coordinates + PixelX - (GAME_WIDTH*PixelY);
+            BitMapOffset = BitMapStart + PixelX - (BackgroundBitMap->bitMapInfo.bmiHeader.biWidth * PixelY);
+
+            memcpy(&BitmapPixels,(PIXEL*)BackgroundBitMap->memory + BitMapOffset,sizeof(PIXEL));
+            memcpy((PIXEL*)DrawingSurface->memory + MemoryOffset,&BitmapPixels,sizeof(PIXEL));
+            
+        }
+    }
+    
+    // memset((PIXEL*)DrawingSurface->memory,155,sizeof(PIXEL)*GAME_WIDTH*GAME_HEIGHT);
+
+
+}
+
 VOID LoadBitMapToScreen(GAMEBITMAP GameBitMap, int16_t x, int16_t y, int16_t VerticalOffset,int16_t HorizontalOffset){
     x += HorizontalOffset;
     y += VerticalOffset;
@@ -145,16 +224,31 @@ VOID LoadBitMapToScreen(GAMEBITMAP GameBitMap, int16_t x, int16_t y, int16_t Ver
     PIXEL BackgroundPixels = {0};
 
     
+    int32_t startingX = x;
+    
     for(int32_t PixelY = 0; PixelY < GameBitMap.bitMapInfo.bmiHeader.biHeight; PixelY++){
+        
         for(int32_t PixelX = 0; PixelX < GameBitMap.bitMapInfo.bmiHeader.biWidth; PixelX++){
 
             MemoryOffset = Starting_Coordinate + PixelX - (GAME_WIDTH*PixelY);
             BitMapOffset = Starting_BitMapPixel + PixelX - (GameBitMap.bitMapInfo.bmiHeader.biWidth * PixelY);
+            if (MemoryOffset < 0 || MemoryOffset >= GAME_HEIGHT * GAME_WIDTH) {
+                continue; 
+            }
 
+            if (BitMapOffset < 0 || BitMapOffset >= GameBitMap.bitMapInfo.bmiHeader.biHeight * GameBitMap.bitMapInfo.bmiHeader.biWidth) {
+                continue; 
+            }
+
+            
+
+            if(startingX + PixelX < GAME_WIDTH && startingX + PixelX > 0){
             memcpy(&BitmapPixels,(PIXEL*)GameBitMap.memory + BitMapOffset,sizeof(PIXEL));
             if (BitmapPixels.alpha == 255){
                 memcpy((PIXEL*)DrawingSurface->memory + MemoryOffset,&BitmapPixels,sizeof(PIXEL));
             }
+            }
+            
             
 
         }
@@ -391,7 +485,7 @@ void LoadBitFontToScreen(GAMEBITMAP GameBitMap, const std::string& str, int16_t 
             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 5) + (charWidth * 0);
             break;
             case '.':
-            Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 5) + (charWidth * 2);
+            Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 5) + (charWidth * 1);
             break;
             case '!':
             Starting_Address = (GameBitMap.bitMapInfo.bmiHeader.biWidth * GameBitMap.bitMapInfo.bmiHeader.biHeight) - (GameBitMap.bitMapInfo.bmiHeader.biWidth + GameBitMap.bitMapInfo.bmiHeader.biWidth * charHeight * 5) + (charWidth * 4);

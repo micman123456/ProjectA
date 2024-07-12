@@ -19,6 +19,7 @@
 #include <vector>
 #include "Dialogue.c++"
 #include "Dungeon.c++"
+#include "menu.c++"
 
 
 //256 x 192
@@ -93,11 +94,18 @@ TODO:
 #define WALL_FULL_3 28
 
 
+#define POKEMON_SQUARE 0
+#define MAKUHITA_DOJO 1
+
 typedef enum GAMESTATE{
     GAME_OPENING,
     GAME_TITLE_SCREEN,
+    GAME_OVERWORLD,
     GAME_LOADING_SCREEN,
-    GAME_DUNGEON
+    GAME_DUNGEON,
+    GAME_DUNGEON_LOADING_SCREEN,
+    GAME_MAIN_MENU,
+    GAME_TEXT_BOX_TESTING
 }GAMESTATE;
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
@@ -175,13 +183,24 @@ typedef struct PLAYER{
 
 typedef struct NPC{
     GAMEBITMAP sprite[5][6];
-    uint32_t worldPosX;
-    uint32_t worldPosY;
+    int32_t worldPosX;
+    int32_t worldPosY;
+    int32_t ScreenPosX;
+    int32_t ScreenPosY;
+    int32_t OffsetX;
+    int32_t OffsetY;
+    TILE StandingTile;
+    uint32_t StandingTile_Index;
     uint32_t movementRemaining;
     uint32_t direction;
     uint32_t animation_step;
     uint32_t idleFrameCount;
     GAMEBITMAP sprite_sheet[5];
+    uint32_t overworld;
+    uint32_t visbility;
+    GAMEBITMAP Portrait;
+    Dialogue Dialogue;
+    
     
     
 }NPC;
@@ -207,7 +226,7 @@ typedef struct PATH{
 
 DWORD Load32BppBitmapFromFile(LPCSTR,GAMEBITMAP*);
 DWORD InitPlayer(VOID);
-DWORD InitNPC(VOID);
+DWORD InitNPC(NPC*,LPCSTR SpriteFilePath,LPCSTR PortraitFilePath,LPCSTR,int32_t overworld, int32_t x, int32_t y,int32_t,int32_t);
 int32_t GetPlayerTile(PLAYER*); 
 int32_t GetNextPlayerTile(PLAYER*,int32_t Direction); 
 VOID InitTiles(GAMEBITMAP);  
@@ -265,11 +284,27 @@ VOID RenderLoadingScene(char*);
 DWORD CreateTextBoxBitMap(GAMEBITMAP*,int32_t,int32_t);
 VOID DisplayTextBox(GAMEBITMAP TextBox, Dialogue Dialogue);
 VOID DisplayOptBox(GAMEBITMAP TextBox);
+VOID DisplayPortrait(GAMEBITMAP Portrait);
 BOOL HandleDialog(Dialogue*);
 VOID ToggleTextBox();
 VOID ToggleOptBox();
 VOID HandleOptionSelection(int_fast8_t);
-VOID HandGamestateChange(GAMESTATE, GAMESTATE);
+VOID HandGamestateChange(GAMESTATE, GAMESTATE, int32_t);
+VOID RenderMainMenuScene();
+VOID RenderOverWorld(PLAYER*);
+VOID RenderTestZone();
+VOID DisplayMainMenuToScreen(Menu, int32_t,int32_t);
 
+DWORD InitPlayerOverWorld(VOID);
+VOID SetTilesOverworld(TILE*,int32_t*);
+VOID HandleOverworldChange(int32_t,int32_t);
+DWORD LoadOverWorldIntoMemory(int32_t,LPCSTR,LPCSTR);
+BOOLEAN IsTileOnScreen(int32_t);
+
+VOID NPC_AMV_Handler();
+VOID WorldPosBasedRender(NPC*,PLAYER*);
+VOID InteractionStart(PLAYER Player, NPC NPC);
+VOID InteractionEnd();
+DWORD setDialogFromTextFile(Dialogue*, LPCSTR);
 
 #endif 
