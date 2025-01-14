@@ -1,20 +1,16 @@
 
-ProjectA - Retro Dungeon Crawler - Alpha 0.5
-Welcome to ProjectA, this game will be a retro-style dungeon crawler based on Pokemon Mystery Dungeon (PMD) that takes you on a journey through mysterious dungeons filled with challenges, treasures, and other Pokemon. 
+ProjectC - Formally ProjectA
+Welcome to ProjectC, my Pokemon Mystery Dungeon (PMD) fan game.
 This game is built in C/C++ using the Win32 API, it is built without a game engine or graphics libary. Althought it uses pre made assets.
 
 Table of Contents
-Features
 Requirements
+Usage
 Installation
 Controls
 Gameplay
 Contributing
 License
-
-Features
-Procedurally generated mazes
-PMD assets (Player/NPC models, Pokemon, Dungeon Tiles)   
 
 Requirements
 To run ProjectA, ensure your system meets the following requirements:
@@ -23,7 +19,12 @@ Windows OS
 Installation
 Download the latest release
 Extract the files to your preferred location.
-Run ProjectB.exe to start the game.
+
+Usage
+Cd inside the main directory
+g++ -o build/projectC.exe src/main.c++ -lgdi32 -lwinmm -Wno-write-strings
+.\build\projectC.exe
+
 
 Controls
 ASWD: Move character
@@ -31,6 +32,7 @@ Clt + ASWD : Pivot
 C - Enter No clip
 T - Teleport
 R - Regenerate Map
+G - Grid Mode
 
 Gameplay
 Currently the only gameplay is to find the stairs, regenerate the map and infinitly repeat. More content coming soon.
