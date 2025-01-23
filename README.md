@@ -35,9 +35,11 @@ To run ProjectC, ensure your system meets the following requirements:
 
 1. Navigate to the main directory:
    ```cd path/to/main/directory ```
-2. 
+2. Build the Project:
 ```g++ -o build/projectC.exe src/main.c++ -lgdi32 -lwinmm -Wno-write-strings```
+3. Run it:
 ```.\build\projectC.exe```
+4. Or just Click on pre compiled executable, projectC.exe in the root directory
 
 
 ## Controls

@@ -243,7 +243,7 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     MainMenu.addItem("Desert Cave");
 
     SelectionMenu.addItem("Overworld");
-    SelectionMenu.addItem("Deungeon");
+    SelectionMenu.addItem("Dungeon");
     SelectionMenu.addItem("Exit");
 
     Menus[0] = SelectionMenu;
