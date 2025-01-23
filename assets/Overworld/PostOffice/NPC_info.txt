@@ -1,0 +1,1 @@
+Pelipper,assets\Player_Sprites\0279Pelipper\\,assets\\dialogue\\makuhita-dialog.txt,288,48,-12,-4,8,6,0,0

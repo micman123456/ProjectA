@@ -37,7 +37,7 @@ VOID DrawTileOverride(int32_t Background_Index, int32_t Tile_Type, TILE *Backgro
 
 int32_t ProceduralGenerator(int32_t RoomAttempts, int32_t MinRoomSize, int32_t MaxRoomSize, TILE *Background_Tiles, TILE* Tile_Type_Array, int32_t Corridors){
     try {
-        std::ofstream logFile("../log/Procedural_generation_log.txt");
+        std::ofstream logFile("log/Procedural_generation_log.txt");
         if (!logFile.is_open()) {
             throw std::runtime_error("Error opening log file.");
         }
@@ -188,7 +188,7 @@ int32_t GenerateStairTile(TILE* Background_Tiles) {
 
 VOID GenerateRoomsAttempts(int32_t Attempts, int32_t MinRoomSize, int32_t MaxRoomSize, TILE *Background_Tiles, TILE* Tile_Type_Array) {
     try {
-        std::ofstream logFile("../log/room_generation_log.txt");
+        std::ofstream logFile("log/room_generation_log.txt");
         if (!logFile.is_open()) {
             throw std::runtime_error("Error opening log file.");
         }
@@ -396,7 +396,7 @@ BOOL IsRoomValid(ROOM Room, int32_t* Room_Tiles_Indexes,int32_t Room_Tiles_Index
 
 VOID GenerateConnectingPaths(int32_t Corridors, TILE *Background_Tiles, TILE* Tile_Type_Array){
     try {
-        std::ofstream logFile("../log/path_generation_log.txt");
+        std::ofstream logFile("log/path_generation_log.txt");
         if (!logFile.is_open()) {
             throw std::runtime_error("Error opening log file.");
         }
@@ -555,7 +555,7 @@ VOID GenerateConnectingPaths(int32_t Corridors, TILE *Background_Tiles, TILE* Ti
 
 BOOL GenerateConnectingPathsImproved(ROOM Room1, ROOM Room2, TILE *Background_Tiles, TILE* Tile_Type_Array){
     try {
-        std::ofstream logFile("../log/path_generation_log.txt");
+        std::ofstream logFile("log/path_generation_log.txt");
         if (!logFile.is_open()) {
             throw std::runtime_error("Error opening log file.");
         }

@@ -1,0 +1,1 @@
+Makuhita,assets\\Player_Sprites\\0296Makuhita\\,assets\\dialogue\\makuhita-dialog.txt,-120,-120,-12,-4,8,4,0,0

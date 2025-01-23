@@ -1,0 +1,3 @@
+Walk-Anim,8,5,-12,-12
+Idle-Anim,8,2,-4,-12
+Attack-Anim,8,11,-24,-28

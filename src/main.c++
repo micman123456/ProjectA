@@ -47,7 +47,7 @@ HWND gGameWindow;
 // GAME STATES //
 GAMESTATE gamestate = GAME_OPENING;
 GAMESTATE  NextGameState = GAME_OPENING;
-GAMESTATE Prvgamestate = GAME_OPENING;
+
 
 
 // Graphic stuff //
@@ -74,7 +74,7 @@ LPSTR LoadingText = "Loading";
 
 
 // NPC STUFF //
-std::vector<NPC> Loaded_NPCs(2);
+std::vector<NPC> Loaded_NPCs(4);
 int32_t CurrentNPCIndex;
 
 // Tile map stuff //
@@ -93,7 +93,7 @@ Dialogue CurrentDialogue;
 GAMEBITMAP PortTest; 
 int32_t PageIndex = 0;
 int_fast8_t ShowTextBox = 1;
-int_fast8_t ShowOptBox = 0;
+int_fast8_t ShowOptBox = 1;
 int_fast8_t ShowPortBox = 1;
 int_fast8_t YesNoOptions = 0; // Defaut Option selection set to Yes // 
 BOOL Interaction = FALSE;
@@ -111,7 +111,11 @@ int32_t stairs;
 int_fast8_t flicker = 0;
 
 // Misc //
+Menu Menus[2];
+Menu SelectionMenu;
 Menu MainMenu;
+int32_t Page = 0;
+
 int32_t Mode = 0; // 0 = overworld | 1 = dung //
 
 
@@ -119,6 +123,8 @@ PIXEL BlackPixel = {0};
 PIXEL TestingZoneColor = {0};
 
 CAMERA Camera;
+
+
 
 
 
@@ -202,15 +208,23 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
     // Sets Overworlds // 
 
-    Overworld Pokemon_Square = Overworld(POKEMON_SQUARE,10,8,8,10);
-    Overworld Makuhita_Dojo = Overworld(MAKUHITA_DOJO,BORDER_LEFT,BORDER_RIGHT,BORDER_UP,BORDER_DOWN);
-    Overworld Pelipper_Post_Office = Overworld(PELIPPER_POST_OFFICE,-5,10,5,5);       
+    Overworld Pokemon_Square = Overworld(POKEMON_SQUARE,10,8,8,10,2);
+
+    Overworld Makuhita_Dojo = Overworld(MAKUHITA_DOJO,3,3,-1,3,1);
+
+    Overworld Pelipper_Post_Office = Overworld(PELIPPER_POST_OFFICE,-5,10,5,5,1); 
+
     Overworlds[POKEMON_SQUARE] = Pokemon_Square;
     Overworlds[MAKUHITA_DOJO] = Makuhita_Dojo;
+
     Overworlds[PELIPPER_POST_OFFICE] = Pelipper_Post_Office;
+
     LoadOverWorldIntoMemory(POKEMON_SQUARE,"assets\\Overworld\\PokemonSquare\\PS_Col.bmp","assets\\Overworld\\PokemonSquare\\");
+
     LoadOverWorldIntoMemory(MAKUHITA_DOJO,"assets\\Overworld\\Makuhita_Dojo\\PSFP.bmp","assets\\Overworld\\Makuhita_Dojo\\");
+
     LoadOverWorldIntoMemory(PELIPPER_POST_OFFICE,"assets\\Overworld\\PostOffice\\PostOfficeCol.bmp","assets\\Overworld\\PostOffice\\");
+
 
     // Sets Main menu Dialogue // 
     MainMenuDialogue.setDialogue(0, 0, "Would you like to load into Amp Plains?"); 
@@ -227,6 +241,13 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     MainMenu.addItem("Amp Plains");
     MainMenu.addItem("Apple Woods");
     MainMenu.addItem("Desert Cave");
+
+    SelectionMenu.addItem("Overworld");
+    SelectionMenu.addItem("Deungeon");
+    SelectionMenu.addItem("Exit");
+
+    Menus[0] = SelectionMenu;
+    Menus[1] = MainMenu;
 
     Load32BppBitmapFromFile("assets\\Player_Sprites\\MakPort.bmp",&PortTest);
  
@@ -258,7 +279,9 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
      ULONG minResolution, maxResolution, currentResolution;
      ULONG currentResolutionInMircoSeconds = 0;
      ULONG minResolutionInMircoSeconds = 0;
-    if (NtQueryTimerResolution(&minResolution, &maxResolution, &currentResolution) == 0) {
+    if (NtQueryTimerResolution(&minResolution, &maxResolution, &currentResolution) == 0) 
+    
+    {
         
           currentResolutionInMircoSeconds = ((100*currentResolution)/1000);
           minResolutionInMircoSeconds = ((100*minResolution)/1000);
@@ -308,16 +331,27 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         {
         case GAME_LOADING_SCREEN:
             LoadingFrameCount++;
-            if(LoadingFrameCount>200){
-                HandGamestateChange(gamestate,Prvgamestate,Mode);
-                LoadingFrameCount = 0; 
+            if(LoadingFrameCount>200)
+            {
+                HandleGamestateChange(NextGameState);
+                LoadingFrameCount = 0;
             }
+            break;
+        
+        case GAME_DUNGEON_LOADING_SCREEN:
+            LoadingFrameCount++;
+            if(LoadingFrameCount>200)
+            {
+                HandleGamestateChange(GAME_DUNGEON);
+                LoadingFrameCount = 0;
+            }
+            break;
 
         case GAME_OPENING:
         
-        LoadingFrameCount++;
+            LoadingFrameCount++;
             if(LoadingFrameCount>200){
-                HandGamestateChange(gamestate,GAME_TITLE_SCREEN,Mode);
+                HandleGamestateChange(GAME_TITLE_SCREEN);
                 LoadingFrameCount = 0; 
             }
             break;
@@ -340,10 +374,10 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             break;
         }
 
-        process_player_input();
+        
         render_game_frames();
         NPC_AMV_Handler();
-
+        process_player_input();
         
         QueryPerformanceCounter(&gPreformance_Data.EndingTime);
         gPreformance_Data.ElapsedMicroseconds.QuadPart = gPreformance_Data.EndingTime.QuadPart - gPreformance_Data.StartingTime.QuadPart;
@@ -623,26 +657,42 @@ VOID process_player_input(void){
 
         if(EnterKeyDown && !enter_KeyWasDown )
         {
-            HandGamestateChange(gamestate,GAME_MAIN_MENU,Mode);
+            HandleGamestateChange(GAME_MAIN_MENU);
         }
         if(A_KeyDown && !a_KeyWasDown )
         {
-            HandGamestateChange(gamestate,GAME_TEXT_BOX_TESTING,Mode);
+            HandleGamestateChange(GAME_TEXT_BOX_TESTING);
         }
         
         break;
      case GAME_MAIN_MENU:
      if(A_KeyDown && !a_KeyWasDown)
             {
-                MainMenu.DecrementSelectedItem();
+                Menus[Page].DecrementSelectedItem();
             }
     else if(D_KeyDown && !d_KeyWasDown)
             {
-                MainMenu.IncrementSelectedItem();
+                Menus[Page].IncrementSelectedItem();
             }
     else if(EnterKeyDown && !enter_KeyWasDown )
             {
-            HandGamestateChange(gamestate,GAME_LOADING_SCREEN,Mode);
+            int32_t selection = Menus[Page].getSelectedItem();
+            
+            switch (Page)
+            {
+            case 0:
+                HandleMenuSelection(selection);
+                break;
+            
+            default:
+                if (CurrentDungeon < 3)
+                {
+                    HandleGamestateChange(GAME_DUNGEON_LOADING_SCREEN);
+                    InitDungeon(Dungeons[CurrentDungeon]);
+                }
+                break;
+            }
+
             }
      
      break;
@@ -667,7 +717,7 @@ VOID process_player_input(void){
                     cooldown_frames = 15;
                     CurrentDialogue.ResetDialogue();
                     Mode = 1;
-                    HandGamestateChange(gamestate,GAME_DUNGEON,Mode);
+                    //HandleGamestateChange(gamestate,GAME_DUNGEON);
                     
                     break;
                 
@@ -855,9 +905,11 @@ VOID process_player_input(void){
         // Camera Lock //
         if(L_KeyDown && !l_KeyWasDown)
         {
-            Loaded_NPCs[0].worldPosX += TILE_SIZE;
-            Loaded_NPCs[0].StandingTile_Index -= 1;
-            Loaded_NPCs[0].StandingTile = Background_Tiles[Loaded_NPCs[0].StandingTile_Index];
+            // Loaded_NPCs[0].worldPosX += TILE_SIZE;
+            // Loaded_NPCs[0].StandingTile_Index -= 1;
+            // Loaded_NPCs[0].StandingTile = Background_Tiles[Loaded_NPCs[0].StandingTile_Index];
+            Camera.Mode = Camera.Mode^1;
+            LockCameraToPlayer(&Camera,&Player);
             
         }
         if(G_KeyDown && !g_KeyWasDown)
@@ -867,7 +919,7 @@ VOID process_player_input(void){
 
          if (Player.movementRemaining == 0)
          {
-            UpdateIdleAnimation(&Player, 5, 6, 100);
+            
 
             if(W_KeyDown && A_KeyDown)
             {
@@ -879,10 +931,11 @@ VOID process_player_input(void){
                     if(!Ctr_KeyDown)
                     {
                         Player.animation_step = 1;
-                        Player.movementRemaining = 24;
+                        Player.movementRemaining = 25;
                         Player.idleFrameCount = 0;
                         Player.StandingTile_Index -= (NUMB_TILES_PER_ROW - 1);
                         Player.StandingTile = Background_Tiles[Player.StandingTile_Index];
+                        
                     }
                     break;
 
@@ -915,7 +968,7 @@ VOID process_player_input(void){
                     if(!Ctr_KeyDown)
                     {
                         Player.animation_step = 1;
-                        Player.movementRemaining = 24;
+                        Player.movementRemaining = 25;
                         Player.idleFrameCount = 0;
                         Player.StandingTile_Index -= (NUMB_TILES_PER_ROW + 1);
                         Player.StandingTile = Background_Tiles[Player.StandingTile_Index];
@@ -950,7 +1003,7 @@ VOID process_player_input(void){
                     if(!Ctr_KeyDown)
                     {
                         Player.animation_step = 1;
-                        Player.movementRemaining = 24;
+                        Player.movementRemaining = 25;
                         Player.idleFrameCount = 0;
                         Player.StandingTile_Index += NUMB_TILES_PER_ROW + 1;
                         Player.StandingTile = Background_Tiles[Player.StandingTile_Index];
@@ -985,7 +1038,7 @@ VOID process_player_input(void){
                     if(!Ctr_KeyDown)
                     {
                         Player.animation_step = 1;
-                        Player.movementRemaining = 24;
+                        Player.movementRemaining = 25;
                         Player.idleFrameCount = 0;
                         Player.StandingTile_Index += NUMB_TILES_PER_ROW - 1;
                         Player.StandingTile = Background_Tiles[Player.StandingTile_Index];
@@ -1023,7 +1076,7 @@ VOID process_player_input(void){
                     if(!Ctr_KeyDown)
                     {
                         Player.animation_step = 1;
-                        Player.movementRemaining = 24;
+                        Player.movementRemaining = 25;
                         Player.idleFrameCount = 0;
                         Player.StandingTile_Index += 1;
                         Player.StandingTile = Background_Tiles[Player.StandingTile_Index];
@@ -1059,7 +1112,7 @@ VOID process_player_input(void){
                     if(!Ctr_KeyDown)
                     {
                         Player.animation_step = 1;
-                        Player.movementRemaining = 24;
+                        Player.movementRemaining = 25;
                         Player.idleFrameCount = 0;
                         Player.StandingTile_Index -= 1;
                         Player.StandingTile = Background_Tiles[Player.StandingTile_Index];
@@ -1096,7 +1149,7 @@ VOID process_player_input(void){
                     if(!Ctr_KeyDown)
                 {
                     Player.animation_step = 1;
-                    Player.movementRemaining = 24;
+                    Player.movementRemaining = 25;
                     Player.idleFrameCount = 0;
                     Player.StandingTile_Index -= NUMB_TILES_PER_ROW;
                     Player.StandingTile = Background_Tiles[Player.StandingTile_Index];
@@ -1133,7 +1186,7 @@ VOID process_player_input(void){
                     if(!Ctr_KeyDown)
                     {
                         Player.animation_step = 1;
-                        Player.movementRemaining = 24;
+                        Player.movementRemaining = 25;
                         Player.idleFrameCount = 0;
                         Player.StandingTile_Index += NUMB_TILES_PER_ROW;
                         Player.StandingTile = Background_Tiles[Player.StandingTile_Index];
@@ -1161,7 +1214,9 @@ VOID process_player_input(void){
 
             }
 
-         }
+
+
+        }
          
          else
         {
@@ -1209,9 +1264,22 @@ VOID process_player_input(void){
     default:
         break;
 }
-
-    UpdatePlayerSprite(&Player, 5, 30);
+    
     }
+
+    if (Player.movementRemaining > 0)
+    {
+        Player.current_animation = 0;
+        Player.movementRemaining--;
+        UpdateSprite(&Player,30);
+    }
+    else 
+    {
+        Player.current_animation = 1;
+        UpdateSprite(&Player,60);
+    }
+
+    
 
 
 
@@ -1220,162 +1288,238 @@ VOID process_player_input(void){
     
     case GAME_DUNGEON:
 
-     if(G_KeyDown && !g_KeyWasDown)
-     {
-        ToggleGrid();
-     }    
-
     Player.noClip = (C_KeyDown) ? 1 - Player.noClip : Player.noClip;
 
-    if(T_KeyDown && !t_KeyWasDown){
-        teleportPlayer();
+    // Camera Lock //
+    if (L_KeyDown && !l_KeyWasDown) {
+        Camera.Mode = Camera.Mode ^ 1;
+        LockCameraToPlayer(&Camera, &Player);
     }
-    if(R_KeyDown && ! r_KeyWasDown){
+    
+    if (G_KeyDown && !g_KeyWasDown) {
+        ToggleGrid();
+    }
+
+    if (T_KeyDown && !t_KeyWasDown) {
+        teleportPlayer();
+        LockCameraToPlayer(&Camera, &Player);
+    }
+
+     if(R_KeyDown && ! r_KeyWasDown){
         HandleStairs();
     }
 
-   
-   if (Player.movementRemaining == 0){
-    if(Player.StandingTile.type == STAIRS){
-        
-         ShowTextBox = 1;
-         ShowOptBox = 1;
-        
-        if(S_KeyDown && !s_KeyWasDown){
+    
+
+    if (Player.movementRemaining == 0) {
+        if (Player.StandingTile.type == STAIRS) {
+            ShowTextBox = 1;
+            ShowOptBox = 1;
+
+            if (S_KeyDown && !s_KeyWasDown) {
                 HandleOptionSelection(0);
-            }
-            else if(W_KeyDown && !w_KeyWasDown){
+            } else if (W_KeyDown && !w_KeyWasDown) {
                 HandleOptionSelection(1);
-            }
-            else if(EnterKeyDown && !enter_KeyWasDown ){
-                switch (YesNoOptions)
-                {
-                case 0:
-                    SendMessageA(gGameWindow,STAIRS,0,0);
-                    break;
-                
-                default:
-                    teleportPlayer();
-                    break;
+            } else if (EnterKeyDown && !enter_KeyWasDown) {
+                switch (YesNoOptions) {
+                    case 0:
+                        SendMessageA(gGameWindow, STAIRS, 0, 0);
+                        break;
+                    default:
+                        teleportPlayer();
+                        break;
                 }
             }
-        
-    }
-    else{
-
-    if (Player.idleFrameCount < 30){
-        Player.animation_step = 0;
-        Player.idleFrameCount++;
-        
-    }
-    else if (Player.idleFrameCount >= 30 && Player.idleFrameCount < 60){
-        Player.animation_step = 3;
-        Player.idleFrameCount++;
-    }
-    else {
-        Player.idleFrameCount = 0;
-    }
-    
-    
-    if (A_KeyDown){
-        Player.direction = DIR_LEFT;
-         if(GetNextPlayerTile(&Player,1) < 5 || GetNextPlayerTile(&Player,1) == STAIRS|| Player.noClip == 1){
-            if(!Ctr_KeyDown){
-                Player.animation_step = 1;
-                Player.movementRemaining = 24;
-                Player.idleFrameCount = 0;
-                Player.StandingTile_Index += 1;
-                Player.StandingTile = Background_Tiles[Player.StandingTile_Index];
+        } else {
+            if(W_KeyDown && A_KeyDown)
+            {
+                Player.direction = DIR_UP_LEFT;
+                int32_t nextTile = GetNextPlayerTile2D(&Player,DIR_UP_LEFT);
+                if (nextTile <= FLOOR5 || nextTile == STAIRS)
+                {
+                    if(!Ctr_KeyDown)
+                    {
+                        Player.animation_step = 1;
+                        Player.movementRemaining = 25;
+                        Player.idleFrameCount = 0;
+                        Player.StandingTile_Index -= (NUMB_TILES_PER_ROW - 1);
+                        Player.StandingTile = Background_Tiles[Player.StandingTile_Index];
+                        
+                    }
+                }
             }
-         }
-    }
-    else if (D_KeyDown){
-         Player.direction = DIR_RIGHT;
-         if(GetNextPlayerTile(&Player,2) < 5 || GetNextPlayerTile(&Player,2) == STAIRS|| Player.noClip == 1){
-            if(!Ctr_KeyDown){
-                Player.animation_step = 1;
-                Player.movementRemaining = 24;
-                Player.idleFrameCount = 0;
-                Player.StandingTile_Index -= 1;
-                Player.StandingTile = Background_Tiles[Player.StandingTile_Index];
+            
+            else if(W_KeyDown && D_KeyDown)
+            {
+                Player.direction = DIR_UP_RIGHT;
+                int32_t nextTile = GetNextPlayerTile2D(&Player,DIR_UP_RIGHT);
+                if (nextTile <= FLOOR5 || nextTile == STAIRS)
+                {
+                    if(!Ctr_KeyDown)
+                    {
+                        Player.animation_step = 1;
+                        Player.movementRemaining = 25;
+                        Player.idleFrameCount = 0;
+                        Player.StandingTile_Index -= (NUMB_TILES_PER_ROW + 1);
+                        Player.StandingTile = Background_Tiles[Player.StandingTile_Index];
+                    }
+                }
             }
+            else if(S_KeyDown && A_KeyDown)
+            {
+                Player.direction = DIR_DOWN_LEFT;
+                int32_t nextTile = GetNextPlayerTile2D(&Player,DIR_DOWN_LEFT);
+                if (nextTile <= FLOOR5 || nextTile == STAIRS)
+                {
+                    {
+                        Player.animation_step = 1;
+                        Player.movementRemaining = 25;
+                        Player.idleFrameCount = 0;
+                        Player.StandingTile_Index += NUMB_TILES_PER_ROW + 1;
+                        Player.StandingTile = Background_Tiles[Player.StandingTile_Index];
+                    }
+                }
+            }
+            else if(S_KeyDown && D_KeyDown)
+            {
+                Player.direction = DIR_DOWN_RIGHT;
+                int32_t nextTile = GetNextPlayerTile2D(&Player,DIR_DOWN_RIGHT);
+                if (nextTile <= FLOOR5 || nextTile == STAIRS)
+                {
+                    if(!Ctr_KeyDown)
+                    {
+                        Player.animation_step = 1;
+                        Player.movementRemaining = 25;
+                        Player.idleFrameCount = 0;
+                        Player.StandingTile_Index += NUMB_TILES_PER_ROW - 1;
+                        Player.StandingTile = Background_Tiles[Player.StandingTile_Index];
+                    }
+                }
+            }
+
+
+                
+            else if (A_KeyDown)
+            {
+                Player.direction = DIR_LEFT;
+                int32_t nextTile = GetNextPlayerTile2D(&Player,1);
+                if (nextTile <= FLOOR5 || nextTile == STAIRS)
+                {
+                    if(!Ctr_KeyDown)
+                    {
+                        Player.animation_step = 1;
+                        Player.movementRemaining = 25;
+                        Player.idleFrameCount = 0;
+                        Player.StandingTile_Index += 1;
+                        Player.StandingTile = Background_Tiles[Player.StandingTile_Index];
+                    }
+                }
+            }
+            else if (D_KeyDown)
+            {
+                Player.direction = DIR_RIGHT;
+                int32_t nextTile = GetNextPlayerTile2D(&Player,2);
+                if (nextTile <= FLOOR5 || nextTile == STAIRS)
+                {
+                    if(!Ctr_KeyDown)
+                    {
+                        Player.animation_step = 1;
+                        Player.movementRemaining = 25;
+                        Player.idleFrameCount = 0;
+                        Player.StandingTile_Index -= 1;
+                        Player.StandingTile = Background_Tiles[Player.StandingTile_Index];
+                    }
+                }
+            }
+            else if (W_KeyDown)
+            {
+                
+                int32_t nextTile = GetNextPlayerTile2D(&Player,3);
+                Player.direction = DIR_UP;
+                if (nextTile <= FLOOR5 || nextTile == STAIRS)
+                {
+                    if(!Ctr_KeyDown)
+                {
+                    Player.animation_step = 1;
+                    Player.movementRemaining = 25;
+                    Player.idleFrameCount = 0;
+                    Player.StandingTile_Index -= NUMB_TILES_PER_ROW;
+                    Player.StandingTile = Background_Tiles[Player.StandingTile_Index];
+                }
+                    
+                }
+
+            }
+            else if (S_KeyDown)
+            {
+                int32_t nextTile = GetNextPlayerTile2D(&Player,0);
+                Player.direction = DIR_DOWN;
+                if (nextTile <= FLOOR5 || nextTile == STAIRS)
+                {
+                    if(!Ctr_KeyDown)
+                    {
+                        Player.animation_step = 1;
+                        Player.movementRemaining = 25;
+                        Player.idleFrameCount = 0;
+                        Player.StandingTile_Index += NUMB_TILES_PER_ROW;
+                        Player.StandingTile = Background_Tiles[Player.StandingTile_Index];
+                        
+                    }
+                }
+
+            }
+            
+        }
+    } else {
+        // Process movement and animation
+        switch (Player.direction) {
+            case DIR_DOWN:
+                updatePlayerPosition2D(&Player, DIR_DOWN);
+                updateCameraPosition2D(Camera.worldPosX, Camera.worldPosY, DIR_DOWN);
+                break;
+            case DIR_LEFT:
+                updatePlayerPosition2D(&Player, DIR_LEFT);
+                updateCameraPosition2D(Camera.worldPosX, Camera.worldPosY, DIR_LEFT);
+                break;
+            case DIR_RIGHT:
+                updatePlayerPosition2D(&Player, DIR_RIGHT);
+                updateCameraPosition2D(Camera.worldPosX, Camera.worldPosY, DIR_RIGHT);
+                break;
+            case DIR_UP:
+                updatePlayerPosition2D(&Player, DIR_UP);
+                updateCameraPosition2D(Camera.worldPosX, Camera.worldPosY, DIR_UP);
+                break;
+            case DIR_DOWN_LEFT:
+                updatePlayerPosition2D(&Player, DIR_DOWN_LEFT);
+                updateCameraPosition2D(Camera.worldPosX, Camera.worldPosY, DIR_DOWN_LEFT);
+                break;
+            case DIR_DOWN_RIGHT:
+                updatePlayerPosition2D(&Player, DIR_DOWN_RIGHT);
+                updateCameraPosition2D(Camera.worldPosX, Camera.worldPosY, DIR_DOWN_RIGHT);
+                break;
+            case DIR_UP_LEFT:
+                updatePlayerPosition2D(&Player, DIR_UP_LEFT);
+                updateCameraPosition2D(Camera.worldPosX, Camera.worldPosY, DIR_UP_LEFT);
+                break;
+            case DIR_UP_RIGHT:
+                updatePlayerPosition2D(&Player, DIR_UP_RIGHT);
+                updateCameraPosition2D(Camera.worldPosX, Camera.worldPosY, DIR_UP_RIGHT);
+                break;
+            default:
+                break;
         }
     }
-    else if (W_KeyDown){
-         Player.direction = DIR_UP;
-         if(GetNextPlayerTile(&Player,3) < 5 || GetNextPlayerTile(&Player,3) == STAIRS|| Player.noClip == 1){
-        if(!Ctr_KeyDown){
-        
-            Player.animation_step = 1;
-            Player.movementRemaining = 24;
-            Player.idleFrameCount = 0;
-            Player.StandingTile_Index -= NUMB_TILES_PER_ROW;
-            Player.StandingTile = Background_Tiles[Player.StandingTile_Index];
-        }
-         }
 
-    }
-    else if (S_KeyDown){
-        Player.direction = DIR_DOWN;
-        if(GetNextPlayerTile(&Player,0) < 5 || GetNextPlayerTile(&Player,0) == STAIRS || Player.noClip == 1){
-            if(!Ctr_KeyDown){
-            Player.animation_step = 1;
-            Player.movementRemaining = 24;
-            Player.idleFrameCount = 0;
-            Player.StandingTile_Index += NUMB_TILES_PER_ROW;
-            Player.StandingTile = Background_Tiles[Player.StandingTile_Index];
-        }
-
-        }
-        
-
-    }
-   }
-
-   }
-    
-   else {
-
-
-     switch (Player.direction) {
-        case DIR_DOWN:
-            updatePlayerPosition(Player.worldPosY, TILE_SIZE*-44, TILE_SIZE*44, 120,DIR_DOWN);
-            break;
-        case DIR_LEFT:
-            updatePlayerPosition(Player.worldPosX, TILE_SIZE*-41, TILE_SIZE*41, 200, DIR_LEFT);
-            break;
-        case DIR_RIGHT:
-            updatePlayerPosition(Player.worldPosX, TILE_SIZE*-41, TILE_SIZE*41, 200,DIR_RIGHT);
-            break;
-        case DIR_UP:
-            updatePlayerPosition(Player.worldPosY, TILE_SIZE*-44, TILE_SIZE*44, 120, DIR_UP);
-            break;
-        default:
-            break;
+    if (Player.movementRemaining > 0) {
+        Player.current_animation = 0;
+        Player.movementRemaining--;
+        UpdateSprite(&Player, 30);
+    } else {
+        Player.current_animation = 1;
+        UpdateSprite(&Player, 60);
     }
 
-    Player.movementRemaining--;
-
-    if (Player.movementRemaining < 20) {
-        Player.animation_step = 2;
-    }
-
-    if (Player.movementRemaining < 12) {
-        Player.animation_step = 3;
-    }
-    if(Player.movementRemaining == 0){
-        if(isPlayerInRoom(Player)){
-            Player.InRoom = 1;
-        }
-        else{
-            Player.InRoom = 0;
-        }
-    }
-    
-}
-
-
-        break;
+    break;
     default:
         break;
     }
@@ -1423,6 +1567,7 @@ VOID process_player_input(void){
 // --------------------- | LOADING FUNCTIONS | --------------------- //
 
 DWORD Load32BppBitmapFromFile(LPCSTR fileName,GAMEBITMAP* GameBitMap){
+    
     DWORD Error = ERROR_SUCCESS;
     HANDLE FileHandle = INVALID_HANDLE_VALUE;
     WORD BitMapHeader = 0;
@@ -1501,6 +1646,12 @@ DWORD Load32BppBitmapFromFile(LPCSTR fileName,GAMEBITMAP* GameBitMap){
     return Error;
 
 }
+
+
+
+
+
+
 
 // DWORD LoadSpriteFromSpriteSheet(GAMEBITMAP SpriteSheet, GAMEBITMAP *player_spite_box, int16_t SpriteCountRow,int16_t SpriteCountCol, int16_t Row, int16_t Col){
 //     DWORD Error = ERROR_SUCCESS;
@@ -1627,27 +1778,33 @@ DWORD LoadSpriteFromSpriteSheet(
 
 
 DWORD ImprovedSpriteSheetLoader(
-    
-    GAMEBITMAP SpriteSheet, 
-    GAMEBITMAP* player_sprite_box, 
-    int16_t NumbRows, 
-    int16_t NumbCols, 
+    SPRITESHEET SpriteSheet, 
+    GAMEBITMAP *player_sprite_box, 
     int16_t RowIndex, 
-    int16_t ColIndex, 
-    int32_t spriteWidth, 
-    int32_t spriteHeight, 
-    int32_t horizontalOffset, 
-    int32_t verticalOffset
+    int16_t ColIndex,
+    int16_t offsetX, 
+    int16_t offsetY
+
 ) {
     DWORD Error = ERROR_SUCCESS;
+    BOOL addHeight = FALSE;
 
-    // Validate inputs //
-    if (RowIndex < 0 || RowIndex >= NumbRows || ColIndex < 0 || ColIndex >= NumbCols) 
-    {
+    // Validate input parameters
+    if (SpriteSheet.rowCount <= 0 || SpriteSheet.columnCount <= 0 || 
+        RowIndex < 0 || RowIndex >= SpriteSheet.rowCount || 
+        ColIndex < 0 || ColIndex >= SpriteSheet.columnCount) {
         return ERROR_INVALID_PARAMETER;
     }
 
-    // Set up the player sprite box's bitmap info //
+    // Calculate sprite dimensions
+    int32_t spriteWidth = SpriteSheet.sheet.bitMapInfo.bmiHeader.biWidth / SpriteSheet.columnCount;
+    int32_t spriteHeight = SpriteSheet.sheet.bitMapInfo.bmiHeader.biHeight / SpriteSheet.rowCount;
+
+    if (spriteWidth <= 0 || spriteHeight <= 0) {
+        return ERROR_INVALID_DATA;
+    }
+
+    // Configure player sprite box properties
     player_sprite_box->bitMapInfo.bmiHeader.biSize = sizeof(player_sprite_box->bitMapInfo.bmiHeader);
     player_sprite_box->bitMapInfo.bmiHeader.biWidth = spriteWidth;
     player_sprite_box->bitMapInfo.bmiHeader.biHeight = spriteHeight;
@@ -1656,35 +1813,50 @@ DWORD ImprovedSpriteSheetLoader(
     player_sprite_box->bitMapInfo.bmiHeader.biCompression = BI_RGB;
     player_sprite_box->bitMapInfo.bmiHeader.biPlanes = 1;
 
-    // Allocate memory for the player sprite box //
+    // Allocate memory for the player sprite box
     player_sprite_box->memory = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, player_sprite_box->bitMapInfo.bmiHeader.biSizeImage);
-    if (player_sprite_box->memory == NULL) 
-    {
+    if (player_sprite_box->memory == NULL) {
         return ERROR_NOT_ENOUGH_MEMORY;
     }
 
-    // Calculate starting address in the sprite sheet //
-    int32_t spriteSheetRowPitch = SpriteSheet.bitMapInfo.bmiHeader.biWidth * (GAME_BPP / 8); 
-    int32_t spriteStartX = ColIndex * spriteWidth + horizontalOffset;
-    int32_t spriteStartY = RowIndex * spriteHeight + verticalOffset;
+    // Calculate starting address in the sprite sheet
+    int32_t spriteSheetRowPitch = SpriteSheet.sheet.bitMapInfo.bmiHeader.biWidth * (GAME_BPP / 8);
+    int32_t spriteStartX = ColIndex * spriteWidth + offsetX;
+    int32_t spriteStartY = RowIndex * spriteHeight + offsetY;
+    int32_t spriteSheetPointer = spriteStartY * spriteSheetRowPitch + spriteStartX * (GAME_BPP / 8);
 
-    int32_t spriteSheetPointer = (spriteStartY * spriteSheetRowPitch) + (spriteStartX * (GAME_BPP / 8));
+    // Validate that the sprite fits within the sprite sheet's memory
+    if (spriteSheetPointer + (spriteHeight * spriteSheetRowPitch) > SpriteSheet.sheet.bitMapInfo.bmiHeader.biSizeImage) {
+        // HeapFree(GetProcessHeap(), 0, player_sprite_box->memory);
+        // return ERROR_INVALID_DATA;
+        spriteHeight-=1;
+        addHeight = TRUE;
+    }
+
+    // Copy the sprite row by row
     int32_t memoryOffset = 0;
-
-    // Copy the sprite row by row //
     for (int32_t i = 0; i < spriteHeight; i++) {
         memcpy(
-            (char*)player_sprite_box->memory + memoryOffset,                  
-            (char*)SpriteSheet.memory + spriteSheetPointer,                  
-            spriteWidth * (GAME_BPP / 8)                                    
+            (char*)player_sprite_box->memory + memoryOffset,
+            (char*)SpriteSheet.sheet.memory + spriteSheetPointer,
+            spriteWidth * (GAME_BPP / 8)
         );
-        spriteSheetPointer += spriteSheetRowPitch;                           
-        memoryOffset += spriteWidth * (GAME_BPP / 8);                        
+        spriteSheetPointer += spriteSheetRowPitch;
+        memoryOffset += spriteWidth * (GAME_BPP / 8);
+    }
+
+    if (addHeight)
+    {
+        spriteSheetPointer -= spriteSheetRowPitch;
+        memcpy(
+            (char*)player_sprite_box->memory + memoryOffset,
+            (char*)SpriteSheet.sheet.memory + spriteSheetPointer,
+            spriteWidth * (GAME_BPP / 8)
+        );
     }
 
     return Error;
 }
-
 
 DWORD LoadDungeonIntoMemory(Dungeon Dungeon)
 {
@@ -1698,27 +1870,19 @@ DWORD LoadDungeonIntoMemory(Dungeon Dungeon)
         Error = GetLastError();
         return Error;
     }
-    printf("Tiles loaded from D path\n");
 
     InitTiles(Tile_Sprite_Sheet);
-    printf("Init tiles done\n");
     ResetTiles(Background_Tiles,Tile_Type_Array);
     stairs = ProceduralGenerator(1000,10,18,Background_Tiles,Tile_Type_Array,10);
-    printf("Stairs done e\n");
     BuiltTileMap(Background_Tiles,&Background);
-    printf("Tilemap built\n");
-
-    
     graphics.SetBackgroundBitMap(&Background);
-    printf("graphics set\n");
 
-
-    // if (ResetPlayer() != ERROR_SUCCESS){
-    //     MessageBoxA(NULL, "Error ititalizing player sprite", "Error", MB_ICONEXCLAMATION | MB_OK);
-    //     Error = GetLastError();
-    //     return Error;
-    // }
-    ResetPlayer();
+    if (ResetPlayer() != ERROR_SUCCESS)
+    {
+        MessageBoxA(NULL, "Error ititalizing player sprite", "Error", MB_ICONEXCLAMATION | MB_OK);
+        Error = GetLastError();
+        return Error;
+    }
     printf("Player initialized\n");
 
     }
@@ -1734,43 +1898,155 @@ DWORD LoadDungeonIntoMemory(Dungeon Dungeon)
 
 
 
-DWORD LoadOverWorldIntoMemory(int32_t index, LPCSTR CollisionsMapPath, LPCSTR DirPath)
+DWORD InitDungeon(Dungeon Dungeon)
 {
     DWORD Error = ERROR_SUCCESS;
-    
-    GAMEBITMAP Temp;
-    for(int i = 1; i < 7; i++)
+
+    if(Load32BppBitmapFromFile(Dungeon.getPath(),&Tile_Sprite_Sheet) != ERROR_SUCCESS)
     {
-        std::string indexStr = std::to_string(i);
-        std::string fullPath = std::string(DirPath) + indexStr + ".bmp";
-        LPCSTR Path = fullPath.c_str();
-      
-
-        if(Load32BppBitmapFromFile(Path,&Temp) != ERROR_SUCCESS)
-        {
-            MessageBoxA(NULL, "Unable to load overworld", "Error", MB_ICONEXCLAMATION | MB_OK);
-            Error = GetLastError();
-        return Error;
-        }
-
-        Overworlds[index].SetSprite(Temp,(i-1));   
-
-    }
-
-    if(Load32BppBitmapFromFile(CollisionsMapPath,&Temp) != ERROR_SUCCESS)
-    {
-        MessageBoxA(NULL, "Unable to load overworld CollisionsMap", "Error", MB_ICONEXCLAMATION | MB_OK);
+        MessageBoxA(NULL, "Unable to load font sheet into memory", "Error", MB_ICONEXCLAMATION | MB_OK);
         Error = GetLastError();
         return Error;
     }
-    Overworlds[index].SetCollisionsMap(Temp);
+
+    Dungeon.Reset();
+    LoadingText = Dungeons[CurrentDungeon].getNameWithCurrentFloor();
+
+    InitTiles(Tile_Sprite_Sheet);
+    ResetTiles(Background_Tiles,Tile_Type_Array);
+    stairs = ProceduralGenerator(1000,10,18,Background_Tiles,Tile_Type_Array,10);
+    BuiltTileMap(Background_Tiles,&Background);
+    graphics.SetBackgroundBitMap(&Background);
+
+    if (InitPlayerDung() != ERROR_SUCCESS)
+    {
+        MessageBoxA(NULL, "Error ititalizing player sprite", "Error", MB_ICONEXCLAMATION | MB_OK);
+        Error = GetLastError();
+        return Error;
+    }
+
+    if (ResetPlayer() != ERROR_SUCCESS)
+    {
+        MessageBoxA(NULL, "Error ititalizing player sprite", "Error", MB_ICONEXCLAMATION | MB_OK);
+        Error = GetLastError();
+        return Error;
+    }
+
+    if (InitCamera() != ERROR_SUCCESS){
+        MessageBoxA(NULL, "Error ititalizing CAMERA", "Error", MB_ICONEXCLAMATION | MB_OK);
+        Error = GetLastError();
+        return Error;
+    }
+
+    LockCameraToPlayer(&Camera, &Player);
+
+    ShowOptBox = 0;
+    ShowTextBox = 0;
+    ShowPortBox = 0;
 
     return Error;
 }
 
-DWORD SetCurrentOverWorld(Overworld Overworld)
+
+DWORD LoadOverWorldIntoMemory(int32_t index, LPCSTR CollisionsMapPath, LPCSTR DirPath)
 {
     DWORD Error = ERROR_SUCCESS;
+    int32_t NPC_count = Overworlds[index].GetNumberOfNPCs();
+    GAMEBITMAP Temp;
+
+    // Load overworld sprites //
+    for (int i = 1; i < 7; i++)
+    {
+        std::string indexStr = std::to_string(i);
+        std::string fullPath = std::string(DirPath) + indexStr + ".bmp";
+        LPCSTR Path = fullPath.c_str();
+
+        if (Load32BppBitmapFromFile(Path, &Temp) != ERROR_SUCCESS)
+        {
+            MessageBoxA(NULL, "Unable to load overworld sprite", "Error", MB_ICONEXCLAMATION | MB_OK);
+            Error = GetLastError();
+            return Error;
+        }
+
+        Overworlds[index].SetSprite(Temp, (i - 1));
+    }
+
+    // Load collision map //
+    if (Load32BppBitmapFromFile(CollisionsMapPath, &Temp) != ERROR_SUCCESS)
+    {
+        MessageBoxA(NULL, "Unable to load overworld collision map", "Error", MB_ICONEXCLAMATION | MB_OK);
+        Error = GetLastError();
+        return Error;
+    }
+
+    Overworlds[index].SetCollisionsMap(Temp);
+
+  
+    // Load NPC details //
+    std::string NPC_Info_Path = std::string(DirPath) + "NPC_info.txt";
+
+    FILE* file = fopen(NPC_Info_Path.c_str(), "r");
+    if (!file)
+    {
+        MessageBoxA(NULL, "Unable to open NPC info file", "Error", MB_ICONEXCLAMATION | MB_OK);
+        return ERROR_FILE_NOT_FOUND;
+    }
+
+    NPC OverworldNPCs[10];
+    char lineBuffer[512];
+
+    for (int32_t i = 0; i < NPC_count && fgets(lineBuffer, sizeof(lineBuffer), file); i++)
+    {
+        NPC npc;
+
+        char name[128], sprite_path[256], dialog[256];
+        int32_t x, y, xoffset, yoffset, sp_row_ct, sp_col_ct, sp_row_of, sp_col_of;
+
+        
+        if (sscanf(lineBuffer, "%[^,],%[^,],%[^,],%d,%d,%d,%d,%d,%d,%d,%d",
+                   name, sprite_path, dialog, &x, &y, &xoffset, &yoffset,&sp_row_ct,&sp_col_ct,&sp_row_of,&sp_col_of) != 11)
+        {
+            MessageBoxA(NULL, "Invalid NPC info format", "Error", MB_ICONEXCLAMATION | MB_OK);
+            fclose(file);
+            return ERROR_INVALID_DATA;
+        }
+
+        
+
+        // Populate the NPC struct
+        npc.worldPosX = x;
+        npc.worldPosY = y;
+        npc.OffsetX = xoffset;
+        npc.OffsetY = yoffset;
+        npc.DialogueFilePath = dialog;
+        npc.Name = name;
+        npc.SpriteFilePath = sprite_path;
+                
+
+        // Set overworld NPC //
+        Overworlds[index].SetNPC(npc,i);
+
+        
+
+    }
+
+    fclose(file);
+
+    
+
+
+    return Error;
+}
+
+
+
+
+DWORD SetCurrentOverWorld(Overworld Overworld)
+{
+    
+    DWORD Error = ERROR_SUCCESS;
+
+    LoadingText = "Overworld";
     
     CollisionsMap = Overworld.GetCollisionsMap();
     SetTilesOverworld(Background_Tiles,&CollisionsMap);
@@ -1797,16 +2073,109 @@ DWORD SetCurrentOverWorld(Overworld Overworld)
         return Error;
     }
 
-    
-    if (ImprovedInitNPC(&Loaded_NPCs[0],"assets\\Player_Sprites\\Walk-Anim-ch.bmp","assets\\Player_Sprites\\port-ch.bmp","assets\\dialogue\\chatot-dialog.txt",TILE_SIZE*2,0,-12,-8) != ERROR_SUCCESS){
-        MessageBoxA(NULL, "Error ititalizing player sprite to Overworld", "Error", MB_ICONEXCLAMATION | MB_OK);
-        Error = GetLastError();
-        return Error;
+
+    for (int32_t i = 0; i < Overworld.GetNumberOfNPCs(); i++)
+    {
+        
+        NPC temp = Overworld.GetNPC(i);
+        
+
+        
+        LPCSTR SpritePath = temp.SpriteFilePath.c_str();
+        LPCSTR DialoguePath = temp.DialogueFilePath.c_str();
+
+        
+
+        if (ImprovedInitNPC(&Loaded_NPCs[i],
+        SpritePath,
+        DialoguePath,
+        temp.worldPosX,
+        temp.worldPosY,
+        temp.OffsetX,
+        temp.OffsetY
+        ) != ERROR_SUCCESS)
+        {
+            MessageBoxA(NULL, "Error ititalizing NPC sprite to Overworld", "Error", MB_ICONEXCLAMATION | MB_OK);
+            Error = GetLastError();
+            return Error;
+        }
+
     }
+
+    
+    
     
     return Error;
 
 }
+
+
+// DWORD SetCurrentOverWorld(Overworld Overworld)
+// {
+//     DWORD Error = ERROR_SUCCESS;
+
+//     try {
+//         // Assertions for essential pointers
+//         assert(Background_Tiles != nullptr);
+
+//         // Set up the collision map and background
+//         CollisionsMap = Overworld.GetCollisionsMap();
+//         SetTilesOverworld(Background_Tiles, &CollisionsMap);
+//         Background = Overworld.GetSprite(OverworldFramePointer);
+//         graphics.SetBackgroundBitMap(&Background);
+
+//         // Initialize player in the overworld
+//         if (InitPlayerOverWorld() != ERROR_SUCCESS) {
+//             MessageBoxA(NULL, "Error initializing player sprite to Overworld", "Error", MB_ICONEXCLAMATION | MB_OK);
+//             throw std::runtime_error("Failed to initialize player sprite in Overworld");
+//         }
+
+//         // Initialize camera
+//         if (InitCamera() != ERROR_SUCCESS) {
+//             MessageBoxA(NULL, "Error initializing CAMERA", "Error", MB_ICONEXCLAMATION | MB_OK);
+//             throw std::runtime_error("Failed to initialize camera");
+//         }
+
+//         // Clear current NPC list safely
+//         for (auto& npc : Loaded_NPCs) {
+//             npc = NPC(); // Reset NPC to default
+//         }
+//         Loaded_NPCs.clear(); // Free resources and ensure the vector is empty
+
+//         // Add NPCs from the new overworld
+//         for (int32_t i = 0; i < Overworld.GetNumberOfNPCs(); ++i) {
+//             NPC temp = Overworld.GetNPC(i);
+
+//             LPCSTR SpritePath = temp.SpriteFilePath.c_str();
+//             LPCSTR DialoguePath = temp.DialogueFilePath.c_str();
+
+//             Loaded_NPCs.emplace_back(); // Add a default NPC slot for initialization
+//             if (ImprovedInitNPC(&Loaded_NPCs.back(),
+//                                 SpritePath,
+//                                 DialoguePath,
+//                                 temp.worldPosX,
+//                                 temp.worldPosY,
+//                                 temp.OffsetX,
+//                                 temp.OffsetY) != ERROR_SUCCESS) {
+//                 MessageBoxA(NULL, "Error initializing NPC sprite to Overworld", "Error", MB_ICONEXCLAMATION | MB_OK);
+//                 throw std::runtime_error("Failed to initialize NPC sprite in Overworld");
+//             }
+//         }
+//     }
+//     catch (const std::exception& ex) {
+//         Error = GetLastError(); // Capture the last error code
+//         // Log the exception message for debugging purposes
+//         MessageBoxA(NULL, ex.what(), "Exception", MB_ICONEXCLAMATION | MB_OK);
+//     }
+//     catch (...) {
+//         Error = GetLastError(); // Capture the last error code
+//         MessageBoxA(NULL, "Unknown error occurred in SetCurrentOverWorld", "Error", MB_ICONEXCLAMATION | MB_OK);
+//     }
+
+//     return Error;
+// }
+
+
 
 DWORD SetTestingZone()
 {
@@ -1850,12 +2219,12 @@ DWORD SetTestingZone()
     }
 
     
-    if (ImprovedInitNPC(&Loaded_NPCs[0],"assets\\Player_Sprites\\Walk-Anim-ch.bmp","assets\\Player_Sprites\\port-ch.bmp","assets\\dialogue\\chatot-dialog.txt",48,0,-12,-8) != ERROR_SUCCESS)
-    {
-        MessageBoxA(NULL, "Error ititalizing player sprite to Overworld", "Error", MB_ICONEXCLAMATION | MB_OK);
-        Error = GetLastError();
-        return Error;
-    }
+    // if (ImprovedInitNPC(&Loaded_NPCs[0],"assets\\Player_Sprites\\Walk-Anim-ch.bmp","assets\\Player_Sprites\\port-ch.bmp","assets\\dialogue\\chatot-dialog.txt",48,0,-12,-8,1,1,1,1) != ERROR_SUCCESS)
+    // {
+    //     MessageBoxA(NULL, "Error ititalizing npc sprite to Overworld", "Error", MB_ICONEXCLAMATION | MB_OK);
+    //     Error = GetLastError();
+    //     return Error;
+    // }
 
     
     return Error;
@@ -1885,17 +2254,19 @@ DWORD SetTestingZone()
 // --------------------- | DUNG FUNCTIONS | --------------------- //
 
 VOID HandleStairs(){
-        if(Dungeons[0].getCurrentFloor() >= Dungeons[0].getNumberOfFloors()){
+        
+        if(Dungeons[CurrentDungeon].getCurrentFloor() >= Dungeons[CurrentDungeon].getNumberOfFloors()){
             LoadingText = "Completed";
-            Mode = 0;
-            HandGamestateChange(gamestate,GAME_OVERWORLD,Mode);
+            SetCurrentOverWorld(Overworlds[CurrentOverworld]);
+            Dungeons[0].Reset();
+            NextGameState = GAME_OVERWORLD;
+            HandleGamestateChange(GAME_LOADING_SCREEN);
         }
         else{
         // Set gamestate and Loading text to whatever floor of the dungeon // 
-        Dungeons[0].NextFloor();
-        LoadingText = Dungeons[0].getNameWithCurrentFloor();
-        
-        HandGamestateChange(gamestate,GAME_LOADING_SCREEN,Mode);
+        printf("Stairs found, switching to loading screen\n");
+        Dungeons[CurrentDungeon].NextFloor();
+        HandleGamestateChange(GAME_DUNGEON_LOADING_SCREEN);
 
         // Generate Next floor // 
         ResetTiles(Background_Tiles,Tile_Type_Array);
@@ -1903,7 +2274,8 @@ VOID HandleStairs(){
         BuiltTileMap(Background_Tiles,&Background);
 
         // Init player
-        teleportPlayer();
+        ResetPlayer();
+        LockCameraToPlayer(&Camera, &Player);
         ShowTextBox = 0;
         ShowOptBox = 0;
         }
@@ -1960,7 +2332,7 @@ VOID render_game_frames(void){
         }
         break;
     case GAME_DUNGEON:
-        RenderDungeonScene(Background,&Player);
+        RenderDungeonScene(&Player);
         if(gridView == 1)
         {
             graphics.LoadGrid();
@@ -1969,6 +2341,10 @@ VOID render_game_frames(void){
         break;
 
     case GAME_LOADING_SCREEN:
+        RenderLoadingScene(LoadingText);
+        break;
+    case GAME_DUNGEON_LOADING_SCREEN:
+        LoadingText = Dungeons[CurrentDungeon].getNameWithCurrentFloor();
         RenderLoadingScene(LoadingText);
         break;
     case GAME_TEXT_BOX_TESTING:
@@ -1987,7 +2363,7 @@ VOID render_game_frames(void){
     StretchDIBits(deviceContext,0,0,gMonitorWidth,gMonitorHeight,0,0,GAME_WIDTH,GAME_HEIGHT,DrawingSurface.memory,&DrawingSurface.bitMapInfo,DIB_RGB_COLORS,SRCCOPY);
     
     char fpsBuffer[64] = {0};
-    sprintf(fpsBuffer, "Cooked FPS: %.01f Raw FPS: %.01f Screen Position: %d:%d, %d %d",gPreformance_Data.CookFPS,gPreformance_Data.RawFPS,Player.worldPosX, Player.worldPosY, Player.StandingTile_Index,GetNextPlayerTile(&Player,Player.direction));
+    sprintf(fpsBuffer, "Cooked FPS: %.01f Raw FPS: %.01f Screen Position: %d:%d, %d %d %d",gPreformance_Data.CookFPS,gPreformance_Data.RawFPS,Player.worldPosX, Player.worldPosY, Player.StandingTile_Index,GetNextPlayerTile(&Player,Player.direction),gamestate);
     //sprintf(fpsBuffer, "Cooked FPS: %.01f Raw FPS: %.01f",gPreformance_Data.CookFPS,gPreformance_Data.RawFPS);
     SetTextColor(deviceContext, RGB(255, 255, 255));  
     SetBkMode(deviceContext, TRANSPARENT );
@@ -2117,28 +2493,28 @@ DWORD InitPlayer(VOID){
     /* Walking Animations */
 
     /* Down */
-    Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[0][0],8,5,7,0,0,0);
-    Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[0][1],8,5,7,1,0,0);
-    Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[0][2],8,5,7,2,0,0);
-    Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[0][3],8,5,7,4,0,0);
+    Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[0][0][0],8,5,7,0,0,0);
+    Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[0][0][1],8,5,7,1,0,0);
+    Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[0][0][2],8,5,7,2,0,0);
+    Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[0][0][3],8,5,7,4,0,0);
 
     /* Left */
-    Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[1][0],8,5,1,0,0,0);
-    Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[1][1],8,5,1,1,0,0);
-    Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[1][2],8,5,1,2,0,0);
-    Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[1][3],8,5,1,4,0,0);
+    Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[0][1][0],8,5,1,0,0,0);
+    Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[0][1][1],8,5,1,1,0,0);
+    Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[0][1][2],8,5,1,2,0,0);
+    Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[0][1][3],8,5,1,4,0,0);
 
     /* Right */
-    Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[2][0],8,5,5,0,0,0);
-    Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[2][1],8,5,5,1,0,0);
-    Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[2][2],8,5,5,2,0,0);
-    Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[2][3],8,5,5,4,0,0);
+    Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[0][2][0],8,5,5,0,0,0);
+    Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[0][2][1],8,5,5,1,0,0);
+    Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[0][2][2],8,5,5,2,0,0);
+    Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[0][2][3],8,5,5,4,0,0);
 
     /* Up */
-    Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[3][0],8,5,3,0,0,0);
-    Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[3][1],8,5,3,1,0,0);
-    Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[3][2],8,5,3,2,0,0);
-    Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[3][3],8,5,3,4,0,0);
+    Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[0][3][0],8,5,3,0,0,0);
+    Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[0][3][1],8,5,3,1,0,0);
+    Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[0][3][2],8,5,3,2,0,0);
+    Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[0][3][3],8,5,3,4,0,0);
     
     
 
@@ -2179,17 +2555,64 @@ DWORD InitPlayerOverWorld() {
     Player.StandingTile = Background_Tiles[STARTING_TILE];
     Player.StandingTile_Index = STARTING_TILE;
     Player.noClip = 0;
+    Player.SpriteFilePath = "assets\\Player_Sprites\\0253Grovyle\\";
+    Player.current_animation = 0;
+    Player.animationCount = 3;
+    Player.animationTimer = 0;
 
-    // Load player sprite sheets
-    Error = Load32BppBitmapFromFile("assets\\Player_Sprites\\Walk-Anim.bmp", &Player.sprite_sheet[0]);
-    if (Error != ERROR_SUCCESS) return Error;
+     // Load plr details //
+    std::string AnimData = std::string(Player.SpriteFilePath) + "AnimData.txt";
 
-    Error = Load32BppBitmapFromFile("assets\\Player_Sprites\\Idle-Anim.bmp", &Player.sprite_sheet[1]);
-    if (Error != ERROR_SUCCESS) return Error;
+    FILE* file = fopen(AnimData.c_str(), "r");
+    if (!file)
+    {
+        MessageBoxA(NULL, "Unable to open Player Anim data file", "Error", MB_ICONEXCLAMATION | MB_OK);
+        return ERROR_FILE_NOT_FOUND;
+    }
+
+    char lineBuffer[512];
+
+    for (int32_t i = 0; i < 3 && fgets(lineBuffer, sizeof(lineBuffer), file); i++)
+    {
+        SPRITESHEET spritesheet;
+
+        char name[128];
+        int32_t rowCount, colCount, v_offset, h_offset;
+
+        
+        if (sscanf(lineBuffer, "%[^,],%d,%d,%d,%d",
+                   name, &rowCount, &colCount,&v_offset,&h_offset) != 5)
+        {
+            MessageBoxA(NULL, "Invalid Player Anim data file format", "Error", MB_ICONEXCLAMATION | MB_OK);
+            fclose(file);
+            return ERROR_INVALID_DATA;
+        }
+
+        if(Load32BppBitmapFromFile(std::string(Player.SpriteFilePath + name + ".bmp").c_str(),&spritesheet.sheet) != ERROR_SUCCESS)
+        {
+            MessageBoxA(NULL, "Unable to load player sprite sheet", "Error", MB_ICONEXCLAMATION | MB_OK);
+            return GetLastError();
+        }
+        spritesheet.spriteName = name;
+        spritesheet.rowCount = rowCount;
+        spritesheet.columnCount = colCount;
+        spritesheet.height = spritesheet.sheet.bitMapInfo.bmiHeader.biHeight;
+        spritesheet.width = spritesheet.sheet.bitMapInfo.bmiHeader.biWidth;
+        spritesheet.v_offset = v_offset;
+        spritesheet.h_offset = h_offset;   
+
+        Player.spriteSheets[i] = spritesheet;
+        printf("Successfully Loaded in spritesheet %s\n",name);
+
+    }
+
+    fclose(file);
+
+
 
     // Define sprite sheet properties
     const int16_t numRows = 8; 
-    const int16_t numCols = 5; 
+    const int16_t numCols = 5;
 
     // Map each direction to its corresponding row in the sprite sheet
     const int directionRows[NUM_DIRECTIONS] = {
@@ -2202,230 +2625,152 @@ DWORD InitPlayerOverWorld() {
         2, // DIR_UP_LEFT
         4  // DIR_UP_RIGHT
     };
-
-    // Load walking and idle animations for each direction
-    for (int direction = 0; direction < NUM_DIRECTIONS; ++direction) {
-        int row = directionRows[direction];
-
-        // Load walking frames
-        for (int frame = 0; frame < NUM_WALK_FRAMES; ++frame) {
-            Error = LoadSpriteFromSpriteSheet(
-                Player.sprite_sheet[0],
-                &Player.sprite[direction][frame],
-                numRows, numCols, row, frame, 0, 0);
-            if (Error != ERROR_SUCCESS) return Error;
-        }
-
-        // Load idle frames
-        for (int frame = 0; frame < NUM_IDLE_FRAMES; ++frame) {
-            Error = LoadSpriteFromSpriteSheet(
-                Player.sprite_sheet[1],
-                &Player.sprite[direction][NUM_WALK_FRAMES + frame],
-                numRows, 2, row, frame, 0, 8); // Idle frames have an offset
-            if (Error != ERROR_SUCCESS) return Error;
+    
+    //For each sprite sheet, load each frame for each direction. //
+    for (int i = 0; i < Player.animationCount; i++)
+    {
+        for (int direction = 0; direction < NUM_DIRECTIONS; ++direction) 
+        {
+            int row = directionRows[direction];
+            for (int frame = 0; frame < Player.spriteSheets[i].columnCount; ++frame) 
+            {
+                Error = ImprovedSpriteSheetLoader(
+                    Player.spriteSheets[i],
+                    &Player.sprite[i][direction][frame],
+                    row, frame, 0, 0);
+                if (Error != ERROR_SUCCESS) return Error;
+            }
         }
     }
+
+
 
     return Error;
 }
 
-// DWORD InitPlayerOverWorld(VOID) {
-//     DWORD Error = ERROR_SUCCESS;
-
-//     // Initialize player properties
-//     Player.worldPosX = 0;
-//     Player.worldPosY = 0;
-//     Player.ScreenPosX = GAME_WIDTH / 2;
-//     Player.ScreenPosY = GAME_HEIGHT / 2;
-//     Player.movementRemaining = 0;
-//     Player.animation_step = 1;
-//     Player.direction = DIR_DOWN_LEFT;
-//     Player.idleFrameCount = 0;
-//     Player.StandingTile = Background_Tiles[STARTING_TILE];
-//     Player.StandingTile_Index = STARTING_TILE;
-//     Player.noClip = 0;
-
-//     // Load player sprite sheets
-//     Error = Load32BppBitmapFromFile("assets\\Player_Sprites\\Walk-Anim.bmp", &Player.sprite_sheet[0]);
-//     if (Error != ERROR_SUCCESS) return Error;
-
-//     Error = Load32BppBitmapFromFile("assets\\Player_Sprites\\Idle-Anim.bmp", &Player.sprite_sheet[1]);
-//     if (Error != ERROR_SUCCESS) return Error;
-
-//     // Define sprite dimensions and offsets
-//     const int32_t spriteWidth = 32;  // Example width of each sprite
-//     const int32_t spriteHeight = 32; // Example height of each sprite
-//     const int32_t horizontalOffset = 0; // Offset within each sprite
-//     const int32_t verticalOffset = 0;
-
-//     // Load walking animations
-//     const int16_t numRows = 8; // Total rows in the sprite sheet
-//     const int16_t numCols = 5; // Total columns in the sprite sheet
-
-//   /* Walking Animations */
-
-//     /* Down */
-//     Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[DIR_DOWN][0],8,5,7,0,0,0);
-//     Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[DIR_DOWN][1],8,5,7,1,0,0);
-//     Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[DIR_DOWN][2],8,5,7,2,0,0);
-//     Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[DIR_DOWN][3],8,5,7,3,0,0);
-//     Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[DIR_DOWN][4],8,5,7,4,0,0);
-
-//     /* Idle Down */
-//     Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[1], &Player.sprite[DIR_DOWN][5],8,2,7,0,0,8);
-//     Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[1], &Player.sprite[DIR_DOWN][6],8,2,7,1,0,8);
-
-//     /* Left */
-//     Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[DIR_LEFT][0],8,5,1,0,0,0);
-//     Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[DIR_LEFT][1],8,5,1,1,0,0);
-//     Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[DIR_LEFT][2],8,5,1,2,0,0);
-//     Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[DIR_LEFT][3],8,5,1,3,0,0);
-//     Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[DIR_LEFT][4],8,5,1,4,0,0);
-
-//     /* Idle Left */
-//     Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[1], &Player.sprite[DIR_LEFT][5],8,2,1,0,0,8);
-//     Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[1], &Player.sprite[DIR_LEFT][6],8,2,1,1,0,8);
-
-//     /* Right */
-//     Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[DIR_RIGHT][0],8,5,5,0,0,0);
-//     Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[DIR_RIGHT][1],8,5,5,1,0,0);
-//     Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[DIR_RIGHT][2],8,5,5,2,0,0);
-//     Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[DIR_RIGHT][3],8,5,5,3,0,0);
-//     Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[DIR_RIGHT][4],8,5,5,4,0,0);
-
-//     /* Idle right */
-//     Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[1], &Player.sprite[DIR_RIGHT][5],8,2,5,0,0,8);
-//     Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[1], &Player.sprite[DIR_RIGHT][6],8,2,5,1,0,8);
-
-//     /* Up */
-//     Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[DIR_UP][0],8,5,3,0,0,0);
-//     Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[DIR_UP][1],8,5,3,1,0,0);
-//     Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[DIR_UP][2],8,5,3,2,0,0);
-//     Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[DIR_UP][3],8,5,3,3,0,0);
-//     Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[DIR_UP][4],8,5,3,4,0,0);
-
-//     /* Idle up */
-//     Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[1], &Player.sprite[DIR_UP][5],8,2,3,0,0,8);
-//     Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[1], &Player.sprite[DIR_UP][6],8,2,3,1,0,8);
-
-    
-//     /* Down Left */
-//     Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[DIR_DOWN_LEFT][0],8,5,0,0,0,0);
-//     Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[DIR_DOWN_LEFT][1],8,5,0,1,0,0);
-//     Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[DIR_DOWN_LEFT][2],8,5,0,2,0,0);
-//     Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[DIR_DOWN_LEFT][3],8,5,0,3,0,0);
-//     Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[DIR_DOWN_LEFT][4],8,5,0,4,0,0);
-
-    
-//     /* Idle Down Left*/
-//     Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[1], &Player.sprite[DIR_DOWN_LEFT][5],8,2,0,0,0,8);
-//     Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[1], &Player.sprite[DIR_DOWN_LEFT][6],8,2,0,1,0,8);
-
-//     /* Down right */
-//     Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[DIR_DOWN_LEFT][0],8,5,0,0,0,0);
-//     Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[DIR_DOWN_LEFT][1],8,5,0,1,0,0);
-//     Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[DIR_DOWN_LEFT][2],8,5,0,2,0,0);
-//     Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[DIR_DOWN_LEFT][3],8,5,0,3,0,0);
-//     Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[0], &Player.sprite[DIR_DOWN_LEFT][4],8,5,0,4,0,0);
-
-    
-//     /* Idle Down right*/
-//     Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[1], &Player.sprite[DIR_DOWN_LEFT][5],8,2,0,0,0,8);
-//     Error = LoadSpriteFromSpriteSheet(Player.sprite_sheet[1], &Player.sprite[DIR_DOWN_LEFT][6],8,2,0,1,0,8);
-
-    
-    
-
-//     if (Error != ERROR_SUCCESS){
-//         Error = GetLastError();
-//     }
-//     return Error;
-// }
-
-
-DWORD InitNPC(NPC* npc, LPCSTR SpriteFilePath,LPCSTR PortraitFilePath, LPCSTR DialogueFilePath, int32_t overworld, int32_t x, int32_t y, int32_t offsetX,int32_t offsetY){
+DWORD InitPlayerDung() {
     DWORD Error = ERROR_SUCCESS;
-    npc->worldPosX=x;
-    npc->worldPosY=y;
-    npc->ScreenPosX=0;
-    npc->ScreenPosY=0;
-    npc->OffsetX = offsetX;
-    npc->OffsetY = offsetY;
-    npc->StandingTile_Index = STARTING_TILE - npc->worldPosX%TILE_SIZE + (npc->worldPosY%TILE_SIZE)*NUMB_TILES_PER_ROW;
 
-    npc->movementRemaining = 0;
-    npc->animation_step = 1;
-    npc->direction = DIR_DOWN;
-    npc->idleFrameCount = 0;
-    npc->overworld = overworld;
-    npc->visbility = 0;
+    // Initialize player properties
+    Player.worldPosX = 0;
+    Player.worldPosY = 0;
+    Player.ScreenPosX = GAME_WIDTH / 2;
+    Player.ScreenPosY = GAME_HEIGHT / 2;
+    Player.movementRemaining = 0;
+    Player.animation_step = 1;
+    Player.direction = DIR_DOWN_LEFT;
+    Player.idleFrameCount = 0;
+    Player.StandingTile = Background_Tiles[STARTING_TILE];
+    Player.StandingTile_Index = STARTING_TILE;
+    Player.noClip = 0;
+    Player.SpriteFilePath = "assets\\Player_Sprites\\0253Grovyle\\";
+    Player.current_animation = 0;
+    Player.animationCount = 3;
+    Player.animationTimer = 0;
 
-    if(CurrentOverworld == npc->overworld){
-        npc->visbility = 1;
-    }
-    
-    /* Load player sprites */
-    
-    
-    /* Load player sprites sheets */
-    Error = Load32BppBitmapFromFile(SpriteFilePath,&npc->sprite_sheet[0]);
-    Error = Load32BppBitmapFromFile(PortraitFilePath,&npc->Portrait);
-    
+     // Load plr details //
+    std::string AnimData = std::string(Player.SpriteFilePath) + "AnimData.txt";
 
-    /* Walking Animations */
-
-    /* Down */
-    Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[0][0],8,4,7,0,0,0);
-    Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[0][1],8,4,7,1,0,0);
-    Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[0][2],8,4,7,2,0,0);
-    Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[0][3],8,4,7,3,0,0);
-
-    /* Left */
-    Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[1][0],8,0,1,0,0,0);
-    Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[1][1],8,0,1,1,0,0);
-    Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[1][2],8,0,1,2,0,0);
-    Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[1][3],8,0,1,3,0,0);
-
-    /* Right */
-    Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[2][0],8,0,5,0,0,0);
-    Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[2][1],8,0,5,1,0,0);
-    Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[2][2],8,0,5,2,0,0);
-    Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[2][3],8,0,5,3,0,0);
-
-    /* Up */
-    Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[3][0],8,0,3,0,0,0);
-    Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[3][1],8,0,3,1,0,0);
-    Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[3][2],8,0,3,2,0,0);
-    Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[3][3],8,0,3,3,0,0);
-
-
-    if (!npc->Dialogue.IsSet()){
-    npc->Dialogue = Dialogue();
-    setDialogFromTextFile(&npc->Dialogue,DialogueFilePath);
-    npc->Dialogue.Set();
+    FILE* file = fopen(AnimData.c_str(), "r");
+    if (!file)
+    {
+        MessageBoxA(NULL, "Unable to open Player Anim data file", "Error", MB_ICONEXCLAMATION | MB_OK);
+        return ERROR_FILE_NOT_FOUND;
     }
 
+    char lineBuffer[512];
 
-    
+    for (int32_t i = 0; i < 3 && fgets(lineBuffer, sizeof(lineBuffer), file); i++)
+    {
+        SPRITESHEET spritesheet;
 
+        char name[128];
+        int32_t rowCount, colCount, v_offset, h_offset;
 
-    if (Error != ERROR_SUCCESS){
-        Error = GetLastError();
+        
+        if (sscanf(lineBuffer, "%[^,],%d,%d,%d,%d",
+                   name, &rowCount, &colCount,&v_offset,&h_offset) != 5)
+        {
+            MessageBoxA(NULL, "Invalid Player Anim data file format", "Error", MB_ICONEXCLAMATION | MB_OK);
+            fclose(file);
+            return ERROR_INVALID_DATA;
+        }
+
+        if(Load32BppBitmapFromFile(std::string(Player.SpriteFilePath + name + ".bmp").c_str(),&spritesheet.sheet) != ERROR_SUCCESS)
+        {
+            MessageBoxA(NULL, "Unable to load player sprite sheet", "Error", MB_ICONEXCLAMATION | MB_OK);
+            return GetLastError();
+        }
+        spritesheet.spriteName = name;
+        spritesheet.rowCount = rowCount;
+        spritesheet.columnCount = colCount;
+        spritesheet.height = spritesheet.sheet.bitMapInfo.bmiHeader.biHeight;
+        spritesheet.width = spritesheet.sheet.bitMapInfo.bmiHeader.biWidth;
+        spritesheet.v_offset = v_offset;
+        spritesheet.h_offset = h_offset;   
+
+        Player.spriteSheets[i] = spritesheet;
+        printf("Successfully Loaded in spritesheet %s\n",name);
+
     }
+
+    fclose(file);
+
+
+
+    // Define sprite sheet properties
+    const int16_t numRows = 8; 
+    const int16_t numCols = 5;
+
+    // Map each direction to its corresponding row in the sprite sheet
+    const int directionRows[NUM_DIRECTIONS] = {
+        7, // DIR_DOWN
+        1, // DIR_LEFT
+        5, // DIR_RIGHT
+        3, // DIR_UP
+        0, // DIR_DOWN_LEFT
+        6, // DIR_DOWN_RIGHT
+        2, // DIR_UP_LEFT
+        4  // DIR_UP_RIGHT
+    };
+    
+    //For each sprite sheet, load each frame for each direction. //
+    for (int i = 0; i < Player.animationCount; i++)
+    {
+        for (int direction = 0; direction < NUM_DIRECTIONS; ++direction) 
+        {
+            int row = directionRows[direction];
+            for (int frame = 0; frame < Player.spriteSheets[i].columnCount; ++frame) 
+            {
+                Error = ImprovedSpriteSheetLoader(
+                    Player.spriteSheets[i],
+                    &Player.sprite[i][direction][frame],
+                    row, frame, 0, 0);
+                if (Error != ERROR_SUCCESS) return Error;
+            }
+        }
+    }
+
+
+
     return Error;
 }
 
+DWORD ImprovedInitNPC(
+NPC* npc, 
+LPCSTR SpriteFilePath,
+LPCSTR DialogueFilePath, 
+int32_t x, 
+int32_t y, 
+int32_t offsetX,
+int32_t offsetY)
 
-
-
-DWORD ImprovedInitNPC(NPC* npc, LPCSTR SpriteFilePath,LPCSTR PortraitFilePath, LPCSTR DialogueFilePath, int32_t x, int32_t y, int32_t offsetX,int32_t offsetY)
 {
     DWORD Error = ERROR_SUCCESS;
     
     npc->worldPosX=x;
     npc->worldPosY=y;
     
-
     
     npc->OffsetX = offsetX;
     npc->OffsetY = offsetY;
@@ -2439,40 +2784,152 @@ DWORD ImprovedInitNPC(NPC* npc, LPCSTR SpriteFilePath,LPCSTR PortraitFilePath, L
     npc->direction = DIR_DOWN;
     npc->idleFrameCount = 0;
     npc->visbility = 1;
+
+    npc->animation_step = 0;
+    npc->current_animation = 1;
+    npc->animationTimer = 0;
+    npc->animationCount = 2;
+
+    npc->SpriteFilePath = SpriteFilePath;
+
+
+     // Load NPC details //
+    std::string AnimData = std::string(npc->SpriteFilePath) + "AnimData.txt";
     
-    /* Load sprites */
+
+    FILE* file = fopen(AnimData.c_str(), "r");
+    if (!file)
+    {
+        MessageBoxA(NULL, "Unable to open NPC Anim data file", "Error", MB_ICONEXCLAMATION | MB_OK);
+        return ERROR_FILE_NOT_FOUND;
+    }
+
+
+    char lineBuffer[512];
+
+    for (int32_t i = 0; i < 3 && fgets(lineBuffer, sizeof(lineBuffer), file); i++)
+    {
+        SPRITESHEET spritesheet;
+
+        char name[128];
+        int32_t rowCount, colCount, v_offset, h_offset;
+
+        
+        if (sscanf(lineBuffer, "%[^,],%d,%d,%d,%d",
+                   name, &rowCount, &colCount,&v_offset,&h_offset) != 5)
+        {
+            MessageBoxA(NULL, "Invalid NPC Anim data file format", "Error", MB_ICONEXCLAMATION | MB_OK);
+            fclose(file);
+            return ERROR_INVALID_DATA;
+        }
+
+        if(Load32BppBitmapFromFile(std::string(npc->SpriteFilePath + name + ".bmp").c_str(),&spritesheet.sheet) != ERROR_SUCCESS)
+        {
+            MessageBoxA(NULL, "Unable to load NPC sprite sheet", "Error", MB_ICONEXCLAMATION | MB_OK);
+            return GetLastError();
+        }
+        spritesheet.spriteName = name;
+        spritesheet.rowCount = rowCount;
+        spritesheet.columnCount = colCount;
+        spritesheet.height = spritesheet.sheet.bitMapInfo.bmiHeader.biHeight;
+        spritesheet.width = spritesheet.sheet.bitMapInfo.bmiHeader.biWidth;
+        spritesheet.v_offset = v_offset;
+        spritesheet.h_offset = h_offset;   
+
+        npc->spriteSheets[i] = spritesheet;
+        printf("Successfully Loaded in spritesheet %s\n",name);
+
+    }
+
     
-    
-    /* Load sprites sheets */
-    Error = Load32BppBitmapFromFile(SpriteFilePath,&npc->sprite_sheet[0]);
-    Error = Load32BppBitmapFromFile(PortraitFilePath,&npc->Portrait);
-    
+    // Error = Load32BppBitmapFromFile(WalkAnimPath.c_str(),&npc->sprite_sheet[0]);
+    // Error = Load32BppBitmapFromFile(IdleAnimPath.c_str(),&npc->sprite_sheet[1]);
+    // Error = Load32BppBitmapFromFile(PortraitFilePath.c_str(),&npc->Portrait);
 
-    /* Walking Animations */
+    // // Define sprite sheet properties
+    // const int16_t numRows = spriteRowCount;
+    // const int16_t numCols = spriteColCount;
 
-    /* Down */
-    Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[0][0],8,6,7,0,0,0);
-    Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[0][1],8,6,7,1,0,0);
-    Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[0][2],8,6,7,2,0,0);
-    Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[0][3],8,6,7,3,0,0);
+    // Map each direction to its corresponding row in the sprite sheet
+    const int directionRows[NUM_DIRECTIONS] = {
+        7, // DIR_DOWN
+        1, // DIR_LEFT
+        5, // DIR_RIGHT
+        3, // DIR_UP
+        0, // DIR_DOWN_LEFT
+        6, // DIR_DOWN_RIGHT
+        2, // DIR_UP_LEFT
+        4  // DIR_UP_RIGHT
+    };
 
-    /* Left */
-    Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[1][0],8,6,1,0,0,0);
-    Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[1][1],8,6,1,1,0,0);
-    Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[1][2],8,6,1,2,0,0);
-    Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[1][3],8,6,1,3,0,0);
 
-    /* Right */
-    Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[2][0],8,6,5,0,0,0);
-    Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[2][1],8,6,5,1,0,0);
-    Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[2][2],8,6,5,2,0,0);
-    Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[2][3],8,6,5,3,0,0);
+        for (int i = 0; i < npc->animationCount; i++)
+    {
+        for (int direction = 0; direction < NUM_DIRECTIONS; ++direction) 
+        {
+            int row = directionRows[direction];
+            for (int frame = 0; frame < npc->spriteSheets[i].columnCount; ++frame) 
+            {
+                Error = ImprovedSpriteSheetLoader(
+                    npc->spriteSheets[i],
+                    &npc->sprite[i][direction][frame],
+                    row, frame, 0, 0);
+                if (Error != ERROR_SUCCESS) return Error;
+            }
+        }
+    }
 
-    /* Up */
-    Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[3][0],8,6,3,0,0,0);
-    Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[3][1],8,6,3,1,0,0);
-    Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[3][2],8,6,3,2,0,0);
-    Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[3][3],8,6,3,3,0,0);
+
+    // // Load walking and idle animations for each direction
+    // for (int direction = 0; direction < NUM_DIRECTIONS; ++direction) {
+    //     int row = directionRows[direction];
+
+    //     // Load walking frames
+    //     for (int frame = 0; frame < spriteColCount; ++frame) {
+    //         Error = LoadSpriteFromSpriteSheet(
+    //             npc->sprite_sheet[0],
+    //             &npc->sprite[direction][frame],
+    //             numRows, numCols, row, frame, spriteColOffset, spriteRowOffset);
+
+    //         if (Error != ERROR_SUCCESS) return Error;
+    //     }
+
+    //     // for (int frame = 0; frame < NUM_IDLE_FRAMES; ++frame) {
+    //     //     Error = LoadSpriteFromSpriteSheet(
+    //     //         npc->sprite_sheet[1],
+    //     //         &npc->sprite[direction][NUM_WALK_FRAMES + frame],
+    //     //         spriteRowCount, spriteColCount,
+    //     //         row, frame + NUM_WALK_FRAMES, spriteRowOffset, spriteColOffset);
+    //     //     if (Error != ERROR_SUCCESS) return Error;
+    //     // }
+    // }
+
+
+    // /* Walking Animations */
+
+    // /* Down */
+    // Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[0][0],spriteRowCount,spriteColCount,7,0,0,0);
+    // Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[0][1],spriteRowCount,spriteColCount,7,1,0,0);
+    // Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[0][2],spriteRowCount,spriteColCount,7,2,0,0);
+    // Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[0][3],spriteRowCount,spriteColCount,7,3,0,0);
+
+    // /* Left */
+    // Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[1][0],8,6,1,0,0,0);
+    // Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[1][1],8,6,1,1,0,0);
+    // Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[1][2],8,6,1,2,0,0);
+    // Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[1][3],8,6,1,3,0,0);
+
+    // /* Right */
+    // Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[2][0],8,6,5,0,0,0);
+    // Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[2][1],8,6,5,1,0,0);
+    // Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[2][2],8,6,5,2,0,0);
+    // Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[2][3],8,6,5,3,0,0);
+
+    // /* Up */
+    // Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[3][0],8,6,3,0,0,0);
+    // Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[3][1],8,6,3,1,0,0);
+    // Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[3][2],8,6,3,2,0,0);
+    // Error = LoadSpriteFromSpriteSheet(npc->sprite_sheet[0], &npc->sprite[3][3],8,6,3,3,0,0);
 
 
     if (!npc->Dialogue.IsSet()){
@@ -2643,13 +3100,13 @@ VOID BuiltTileMap(TILE* Tile_Array,GAMEBITMAP* backgroundBitMap){
 // ----------------------- | Rendering Functions | ----------------------- // 
 
 
-VOID RenderDungeonScene(GAMEBITMAP BackgroundBitMap, PLAYER* Player){
+
+VOID RenderDungeonScene(PLAYER* Player)
+{
     
-    graphics.LoadBackgroundToScreen();
-    graphics.LoadBitMapToScreen(Player->sprite[Player->direction][Player->animation_step],Player->ScreenPosX,Player->ScreenPosY,-20,-12);
-    
-     
-     switch (ShowTextBox)
+    graphics.LoadBackgroundFromCamera(Camera);
+    RenderPlayerCharacter(&Camera,Player);
+    switch (ShowTextBox)
     {
     case 1:
         DisplayTextBox(TextBox,DungeonDialogue);
@@ -2667,8 +3124,36 @@ VOID RenderDungeonScene(GAMEBITMAP BackgroundBitMap, PLAYER* Player){
     default:
         break;
     }
-    
 }
+
+
+
+// VOID RenderDungeonScene(GAMEBITMAP BackgroundBitMap, PLAYER* Player){
+    
+//     graphics.LoadBackgroundToScreen();
+//     graphics.LoadBitMapToScreen(Player->sprite[0][Player->direction][Player->animation_step],Player->ScreenPosX,Player->ScreenPosY,-20,-12);
+    
+     
+//      switch (ShowTextBox)
+//     {
+//     case 1:
+//         DisplayTextBox(TextBox,DungeonDialogue);
+//         break;
+    
+//     default:
+//         break;
+//     }
+//     switch (ShowOptBox)
+//     {
+//     case 1:
+//         DisplayOptBox(OptionBox);
+//         break;
+    
+//     default:
+//         break;
+//     }
+    
+// }
 
 VOID RenderTitleScene(){
 
@@ -2690,10 +3175,15 @@ VOID RenderTitleScene(){
 
 
 
-VOID RenderOverWorld(PLAYER* Player){
+VOID RenderOverWorld(PLAYER* Player)
+{
     
     graphics.LoadBackgroundFromCamera(Camera);
-    CameraWorldPosBasedRender(&Loaded_NPCs[0],&Camera);  
+    for (int i = 0; i < Overworlds[CurrentOverworld].GetNumberOfNPCs(); i++){
+        if (Loaded_NPCs[i].visbility == 1){
+            CameraWorldPosBasedRender(&Loaded_NPCs[i],&Camera);
+        }
+    }
     RenderPlayerCharacter(&Camera,Player);
 }
 
@@ -2701,7 +3191,7 @@ VOID RenderMainMenuScene(){
 
     graphics.LoadColorToScreen(BlackPixel);
     graphics.LoadBitFontToScreen(Font,"Select a Dungeon", GAME_WIDTH/2, GAME_HEIGHT/2,1);
-    DisplayMainMenuToScreen(MainMenu,45,180);
+    DisplayMainMenuToScreen(Menus[Page],45,180);
     // graphics.LoadBackScreen();
     // graphics.LoadOverWorldToDrawingSurface();
 
@@ -2724,7 +3214,7 @@ VOID WorldPosBasedRender(NPC* npc, PLAYER* p){
     // calulate npc screen pos based on relative player tile // 
     npc->ScreenPosX = npc->worldPosX - p->worldPosX + (GAME_WIDTH/2);
     npc->ScreenPosY = npc->worldPosY + p->worldPosY + (GAME_HEIGHT/2);
-    graphics.LoadBitMapToScreen(npc->sprite[npc->direction][npc->animation_step],npc->ScreenPosX,npc->ScreenPosY,npc->OffsetY,npc->OffsetX);
+    graphics.LoadBitMapToScreen(npc->sprite[0][npc->direction][npc->animation_step],npc->ScreenPosX,npc->ScreenPosY,npc->OffsetY,npc->OffsetX);
 }
 
 VOID CameraWorldPosBasedRender(NPC* npc, CAMERA* Camera){
@@ -2732,7 +3222,7 @@ VOID CameraWorldPosBasedRender(NPC* npc, CAMERA* Camera){
     npc->ScreenPosX = npc->worldPosX - Camera->worldPosX + (GAME_WIDTH / 2);
     npc->ScreenPosY = -(npc->worldPosY - Camera->worldPosY) + (GAME_HEIGHT / 2); 
 
-    graphics.LoadBitMapToScreen(npc->sprite[npc->direction][npc->animation_step],npc->ScreenPosX,npc->ScreenPosY,npc->OffsetY,npc->OffsetX);
+    graphics.LoadBitMapToScreen(npc->sprite[npc->current_animation][npc->direction][npc->animation_step],npc->ScreenPosX,npc->ScreenPosY,npc->OffsetY,npc->OffsetX);
 }
 
 
@@ -2742,7 +3232,12 @@ VOID RenderPlayerCharacter(CAMERA* Cam, PLAYER* p) {
     p->ScreenPosX = p->worldPosX - Cam->worldPosX + (GAME_WIDTH / 2);
     p->ScreenPosY = -(p->worldPosY - Cam->worldPosY) + (GAME_HEIGHT / 2); 
     
-    graphics.LoadBitMapToScreen(p->sprite[p->direction][p->animation_step], p->ScreenPosX, p->ScreenPosY, -12, -12);
+    graphics.LoadBitMapToScreen(
+        p->sprite[p->current_animation][p->direction][p->animation_step], 
+        p->ScreenPosX, 
+        p->ScreenPosY, 
+        p->spriteSheets[p->current_animation].v_offset, 
+        p->spriteSheets[p->current_animation].h_offset);
 }
 
 
@@ -2764,128 +3259,36 @@ VOID RenderPlayerCharacter(CAMERA* Cam, PLAYER* p) {
 
 
 
-VOID HandGamestateChange(GAMESTATE Current, GAMESTATE Next, int32_t Mode){
-    
-
-    switch (Current)
-    {
-
-    case GAME_OPENING:
-
+VOID HandleGamestateChange(GAMESTATE Next) 
+{
+ switch(Next)
+ {
+    case GAME_TITLE_SCREEN:
         gamestate = GAME_TITLE_SCREEN;
         break;
-    
     case GAME_MAIN_MENU:
-    
-        ToggleTextBox();
-        ToggleOptBox();
-        LoadDungeonIntoMemory(Dungeons[MainMenu.getSelectedItem()]);      
+        gamestate = GAME_MAIN_MENU;
+        break;
+    case GAME_LOADING_SCREEN:
         gamestate = GAME_LOADING_SCREEN;
         break;
-    
-    case GAME_TITLE_SCREEN:
-
-        switch (Next)
-        {
-        case GAME_TEXT_BOX_TESTING:
-            SetTestingZone();
-            gamestate = GAME_TEXT_BOX_TESTING;
-            break;
-        case GAME_MAIN_MENU:
-            gamestate = GAME_MAIN_MENU;
-        
-        default:
-        SetCurrentOverWorld(Overworlds[CurrentOverworld]);
+    case GAME_OVERWORLD:
         gamestate = GAME_OVERWORLD;
         break;
-        
-        }
-        
-        break;
-    
-     case GAME_OVERWORLD:
-        
-
-        switch (Mode)
-        {
-
-        case 0:
-            // Stay in Overworld //
-            LoadingText = "";
-            Prvgamestate = GAME_OVERWORLD;
-            gamestate = GAME_LOADING_SCREEN;
-            break;
-        
-        case 1:
-        // Switching to Dung // 
-        ToggleTextBox();
-
-             
-        
-        LoadingText = Dungeons[0].getNameWithCurrentFloor();
-        printf("Load text done\n");
-
-        LoadDungeonIntoMemory(Dungeons[0]); 
-
-        printf("Dung loaded\n");
-
-        gamestate = GAME_LOADING_SCREEN;
-        break;
-        
-        default:
-            break;
-        }
-        
-        break;
-        
     case GAME_DUNGEON:
-        
-        switch (Mode)
-        {
-        case 1:
-            // Stay in Dung //
-            gamestate = GAME_LOADING_SCREEN;            
-            break;
-        case 0:
-            // Switching to Overworld // 
-            SetCurrentOverWorld(Overworlds[CurrentOverworld]);
-            Dungeons[0].Reset();
-            ShowTextBox = 1;
-            ShowOptBox = 0;
-            gamestate = GAME_LOADING_SCREEN;
-            break;
-        
-        default:
-            
-            break;
-        }
-
-
+        gamestate = GAME_DUNGEON;
         break;
-
-    case GAME_LOADING_SCREEN:
-
-        switch (Mode)
-        {
-        case 1:
-            
-            gamestate = GAME_DUNGEON;
-            break;
-        case 0:
-            gamestate = GAME_OVERWORLD;
-            break;
-        
-        default:
-            break;
-        }
-
-
+    case GAME_DUNGEON_LOADING_SCREEN:
+        gamestate = GAME_DUNGEON_LOADING_SCREEN;
         break;
-    
+    case GAME_TEXT_BOX_TESTING:
+        gamestate = GAME_TEXT_BOX_TESTING;
+        break;
     default:
         break;
-    }
+ }
 }
+
 
 VOID DisplayMainMenuToScreen(Menu menu, int32_t x, int32_t y){
     int32_t distance = GAME_WIDTH/(menu.GetCount()+1);
@@ -2911,33 +3314,28 @@ VOID HandleOverworldChange(int32_t CurrentOW, int32_t tile){
 
         if (tile == TRANSITION_TILE_S)
         {
-        CurrentOverworld = MAKUHITA_DOJO;
-        HandGamestateChange(GAME_OVERWORLD,GAME_LOADING_SCREEN,Mode);
-        SetCurrentOverWorld(Overworlds[CurrentOverworld]);
+        
+        ChangeOverworld(MAKUHITA_DOJO);
+        RelocatePlayer(&Player, 0, -24, DIR_DOWN);
+        LockCameraToPlayer(&Camera,&Player);
         return;
         }
         if (tile == TRANSITION_TILE_N)
         {
-        CurrentOverworld = MAKUHITA_DOJO;
-        HandGamestateChange(GAME_OVERWORLD,GAME_LOADING_SCREEN,Mode);
-        SetCurrentOverWorld(Overworlds[CurrentOverworld]);
+        //ChangeOverworld(POKEMON_SQUARE);
         return;
         }
         if (tile == TRANSITION_TILE_E)
         {
-        CurrentOverworld = PELIPPER_POST_OFFICE;
-        HandGamestateChange(GAME_OVERWORLD,GAME_LOADING_SCREEN,Mode);
-        SetCurrentOverWorld(Overworlds[CurrentOverworld]);
-        RelocatePlayer(&Player,0,0,DIR_RIGHT);
+        ChangeOverworld(PELIPPER_POST_OFFICE);
+        RelocatePlayer(&Player, 120, 0, DIR_RIGHT);
         LockCameraToPlayer(&Camera,&Player);
         
         return;
         }
         if (tile == TRANSITION_TILE_W)
         {
-        CurrentOverworld = MAKUHITA_DOJO;
-        HandGamestateChange(GAME_OVERWORLD,GAME_LOADING_SCREEN,Mode);
-        SetCurrentOverWorld(Overworlds[CurrentOverworld]);
+        //ChangeOverworld(PELIPPER_POST_OFFICE);
         return;
         }
        
@@ -2945,20 +3343,16 @@ VOID HandleOverworldChange(int32_t CurrentOW, int32_t tile){
 
         break;
     case MAKUHITA_DOJO:
-        CurrentOverworld = POKEMON_SQUARE;
-        HandGamestateChange(GAME_OVERWORLD,GAME_LOADING_SCREEN,Mode);
-        SetCurrentOverWorld(Overworlds[CurrentOverworld]);
-        RelocatePlayer(&Player,0,-9*TILE_SIZE,DIR_UP);
+        ChangeOverworld(POKEMON_SQUARE);
+        RelocatePlayer(&Player, 0, -240, DIR_UP);
         LockCameraToPlayer(&Camera,&Player);
         return;
         break;
     
     case PELIPPER_POST_OFFICE:
-        CurrentOverworld = POKEMON_SQUARE;
-        HandGamestateChange(GAME_OVERWORLD,GAME_LOADING_SCREEN,Mode);
-        SetCurrentOverWorld(Overworlds[CurrentOverworld]);
-        RelocatePlayer(&Player,16*TILE_SIZE,0,DIR_LEFT);
-        LockCameraToPlayer(&Camera,&Player);
+        ChangeOverworld(POKEMON_SQUARE);
+        RelocatePlayer(&Player, 360, 0, DIR_LEFT);
+        Camera.worldPosX = Overworlds[CurrentOverworld].GetBorder(DIR_RIGHT)*TILE_SIZE;
         return;
         break;
     
@@ -3184,7 +3578,23 @@ void updateCameraPosition(int32_t& CameraPos, int direction) {
 
 void updateCameraPosition2D(int32_t& CameraPosX, int32_t& CameraPosY, int direction) {
     
-    int32_t Border = Overworlds[CurrentOverworld].GetBorder(direction);
+    if (Camera.Mode == 1) {
+        return;
+    }
+    
+    int32_t Border = 0;
+    
+
+    switch (gamestate)
+    {
+    case GAME_DUNGEON:
+        Border = 100;
+        break;
+    
+    default:
+        Border = Overworlds[CurrentOverworld].GetBorder(direction);
+        break;
+    }
 
     switch (direction) {
         case DIR_DOWN:
@@ -3375,7 +3785,8 @@ int32_t GetNextPlayerTile2D(PLAYER *player, int32_t Direction) {
 }
 
 
-VOID SetWorldPosition(int32_t TileIndex){
+VOID SetWorldPosition(int32_t TileIndex)
+{
     int32_t x,xDifference,y,yDifference;
     x = (TileIndex%NUMB_TILES_PER_ROW) - (NUMB_TILES_PER_ROW/2);
     y = (TileIndex/NUMB_TILES_PER_ROW) - (NUMB_TILES_PER_ROW/2);
@@ -3396,7 +3807,9 @@ VOID UpdatePlayerSprite(PLAYER* player, int32_t totalSprites, int32_t fps)
 {
         if (player->movementRemaining > 0) 
         {
+            player->current_animation = 0;
             player->movementRemaining--;
+
 
             // Calculate the current animation step based on remaining movement
             int32_t stepInterval = fps / totalSprites; // Frames per sprite
@@ -3413,7 +3826,9 @@ VOID UpdatePlayerSprite(PLAYER* player, int32_t totalSprites, int32_t fps)
 }
 
 VOID UpdateIdleAnimation(PLAYER* player, int32_t animationStartStep, int32_t animationEndStep, int32_t idleCycleFrames) 
-{
+{   
+    player->current_animation = 1;
+
     if (player->idleFrameCount < idleCycleFrames) 
     {
         player->animation_step = animationStartStep;
@@ -3431,24 +3846,103 @@ VOID UpdateIdleAnimation(PLAYER* player, int32_t animationStartStep, int32_t ani
 }
 
 
-VOID UpdateIdleAnimationNPC(NPC* npc, int32_t animationStartStep, int32_t animationEndStep, int32_t idleCycleFrames) 
+VOID UpdateIdleAnimationNPC(NPC* npc, int32_t fps) 
 {
-    if (npc->idleFrameCount < idleCycleFrames) 
+    
+
+    int32_t spriteIndex = npc->current_animation;
+    int32_t CurrentStep = npc->animation_step;
+    int32_t totalSprites = npc->spriteSheets[spriteIndex].columnCount;
+    if (totalSprites == 0) 
     {
-        npc->animation_step = animationStartStep;
-    } 
-    else if (npc->idleFrameCount >= idleCycleFrames && npc->idleFrameCount < idleCycleFrames + 20) 
-    {
-        npc->animation_step = animationEndStep;
-    } else 
-    {
-        npc->idleFrameCount = 0;
         return;
     }
+    
+    int32_t stepInterval = fps / totalSprites;
 
-    npc->idleFrameCount++;
+    
+
+
+    
+    if (npc->idleFrameCount > stepInterval) 
+    {
+        npc->animation_step++;
+        npc->idleFrameCount = 0;
+    }
+    else
+    {
+        npc->idleFrameCount++;
+    }
+
+    if (npc->animation_step >= totalSprites) 
+    {
+        npc->animation_step = 0;
+    }
 }
 
+// VOID UpdateIdleAnimationNPC(NPC* npc, int32_t fps)
+// {
+//     int32_t spriteIndex = npc->current_animation;
+//     int32_t CurrentStep = npc->animation_step;
+//     int32_t totalSprites = npc->spriteSheets[spriteIndex].columnCount;
+
+//     // Calculate the interval of frames per animation step
+//     int32_t stepInterval = fps / totalSprites;
+
+//     // Update animation step only if the interval has passed
+//     if (npc->animationTimer % stepInterval == 0)
+//     {
+//         CurrentStep++;
+
+//         // Reset to the first sprite if we exceed the total
+//         if (CurrentStep >=  totalSprites)
+//         {
+//             CurrentStep = 0;
+//         }
+
+//         npc->animation_step = CurrentStep;
+//     }
+
+//     // Increment the timer and reset if a full cycle is completed
+//     npc->animationTimer++;
+//     if (npc->animationTimer >= fps)
+//     {
+//         npc->animationTimer = 0;
+//     }
+// }
+
+
+VOID UpdateSprite(PLAYER* player, int32_t fps)
+{
+    int32_t spriteIndex = player->current_animation;
+    int32_t CurrentStep = player->animation_step;
+    int32_t totalSprites = player->spriteSheets[spriteIndex].columnCount;
+
+    // Calculate the interval of frames per animation step
+    int32_t stepInterval = fps / totalSprites;
+
+    // Update animation step only if the interval has passed
+    if (player->animationTimer % stepInterval == 0)
+    {
+        CurrentStep++;
+
+        // Reset to the first sprite if we exceed the total
+        if (CurrentStep >= totalSprites)
+        {
+            CurrentStep = 0;
+        }
+
+        player->animation_step = CurrentStep;
+    }
+
+    // Increment the timer and reset if a full cycle is completed
+    player->animationTimer++;
+    if (player->animationTimer >= fps)
+    {
+        player->animationTimer = 0;
+    }
+    
+}
 
 
 
@@ -3658,9 +4152,9 @@ BOOL is_already_running(void){
 // Animation Movement and Vis // 
 VOID NPC_AMV_Handler()
 {
-        for (int i = 0; i < Loaded_NPCs.size();i++)
+        for (int i = 0; i < Loaded_NPCs.size()-1;i++)
         {
-        UpdateIdleAnimationNPC(&Loaded_NPCs[i],0,1,100);
+        UpdateIdleAnimationNPC(&Loaded_NPCs[i],60);
         }   
 }
 
@@ -3674,4 +4168,87 @@ VOID ToggleGrid()
 
 
 
+
+
+
 //  ----------------------- | END OF MISC FUNCTIONS |  ----------------------- // 
+
+
+
+VOID ChangeOverworld(int32_t NewOverworldIndex)
+{
+    DWORD Error;
+
+    CurrentOverworld = NewOverworldIndex;
+
+        for (auto& npc : Loaded_NPCs) {
+            npc = NPC();
+        }
+    if (InitPlayerOverWorld() != ERROR_SUCCESS)
+    {
+        MessageBoxA(NULL, "Error initializing player sprite to Overworld", "Error", MB_ICONEXCLAMATION | MB_OK);
+    }
+
+    // Initialize camera
+    if (InitCamera() != ERROR_SUCCESS)
+    {
+        MessageBoxA(NULL, "Error initializing CAMERA", "Error", MB_ICONEXCLAMATION | MB_OK);
+    }
+
+    CollisionsMap = Overworlds[CurrentOverworld].GetCollisionsMap();
+    SetTilesOverworld(Background_Tiles, &CollisionsMap);
+    Background = Overworlds[CurrentOverworld].GetSprite(OverworldFramePointer);
+    graphics.SetBackgroundBitMap(&Background);
+
+    for (int32_t i = 0; i < Overworlds[CurrentOverworld].GetNumberOfNPCs(); i++)
+    {
+        
+        NPC temp = Overworlds[CurrentOverworld].GetNPC(i);
+        
+
+        
+        LPCSTR SpritePath = temp.SpriteFilePath.c_str();
+        LPCSTR DialoguePath = temp.DialogueFilePath.c_str();
+
+        
+
+        if (ImprovedInitNPC(&Loaded_NPCs[i],
+        SpritePath,
+        DialoguePath,
+        temp.worldPosX,
+        temp.worldPosY,
+        temp.OffsetX,
+        temp.OffsetY
+        ) != ERROR_SUCCESS)
+        {
+            MessageBoxA(NULL, "Error ititalizing NPC sprite to Overworld", "Error", MB_ICONEXCLAMATION | MB_OK);
+            Error = GetLastError();
+        }
+
+    }
+
+    NextGameState = GAME_OVERWORLD;
+    gamestate = GAME_LOADING_SCREEN;
+
+}
+
+
+
+VOID HandleMenuSelection(int32_t input){
+    switch (input)
+    {
+    case 0:
+        // switch to Overworld
+        NextGameState = GAME_OVERWORLD;
+        LoadingText = "Loading Overworld";
+        SetCurrentOverWorld(Overworlds[CurrentOverworld]);
+        HandleGamestateChange(GAME_LOADING_SCREEN);
+        break;
+    case 1:
+        Page++;
+        break;
+    default:
+        SendMessageA(gGameWindow,WM_CLOSE,0,0);
+        break;
+    }
+}   

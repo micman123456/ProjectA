@@ -6,6 +6,7 @@ private:
     
     LPCSTR Path;
     LPCSTR CollisionsMapPath;
+    LPCSTR NPCPath;
     
     GAMEBITMAP Sprites[6];
     GAMEBITMAP CollisionsMap;
@@ -14,6 +15,9 @@ private:
     int32_t BorderRight;
     int32_t BorderUp;
     int32_t BorderDown;
+    int32_t NPCCount;
+    int32_t NPCIndex;
+    NPC NPCs[10];
 
 public:
     Overworld() {}   
@@ -23,7 +27,8 @@ public:
     int32_t BorderLeft,
     int32_t BorderRight,
     int32_t BorderUp,
-    int32_t BorderDown
+    int32_t BorderDown,
+    int32_t NPCCount
     
     ){
         this->Map = Map;
@@ -31,6 +36,7 @@ public:
         this->BorderLeft = BorderLeft;
         this->BorderUp = BorderUp;
         this->BorderRight = BorderRight;
+        this->NPCCount = NPCCount;
     }
 
     VOID SetCollisionsMapPath(LPCSTR FloorPlan){
@@ -49,6 +55,14 @@ public:
         return CollisionsMap;
     }
     
+    VOID SetNPCPath(LPCSTR NPCPath){
+        this->NPCPath = NPCPath;
+    }
+    
+    LPCSTR GetNPCPath(){
+        return NPCPath;
+    }
+
     VOID SetSprite(GAMEBITMAP Sprite, int32_t index){
         this->Sprites[index] = Sprite;
     }
@@ -57,6 +71,23 @@ public:
     }
     LPCSTR GetPath(){
         return Path;
+    }
+
+    VOID SetPath(LPCSTR Path){
+        this->Path = Path;
+    }
+
+
+    NPC GetNPC(int32_t index){
+        return NPCs[index];
+    }
+
+    VOID SetNPC(NPC NPC, int32_t index){
+        this->NPCs[index] = NPC;
+    }
+
+    int32_t GetNumberOfNPCs(){
+        return NPCCount;
     }
 
     int32_t GetBorder(int32_t direction)

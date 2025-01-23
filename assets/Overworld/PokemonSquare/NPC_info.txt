@@ -1,0 +1,2 @@
+Chatot,assets\\Player_Sprites\\0441Chatot\\,assets\\dialogue\\chatot-dialog.txt,48,24,-12,-8,8,6,0,0
+Pikachu,assets\Player_Sprites\0025Pikachu\\,assets\\dialogue\\makuhita-dialog.txt,-72,-24,-16,-10,8,6,0,0

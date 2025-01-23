@@ -15,10 +15,13 @@
 #include <string>
 #include <stdlib.h> 
 #include <vector>
+#include <cassert>
+#include <stdexcept>
 
 // Windows API Includes
 #include <windows.h>
 #include <winerror.h>
+
 
 // Project-Specific Includes
 #include "Dialogue.c++"
@@ -117,6 +120,14 @@
 #define MAKUHITA_DOJO 1
 #define PELIPPER_POST_OFFICE 2
 
+// Player Status
+
+#define PLAYER_MOVING 0
+#define PLAYER_IDLE 1
+#define PLAYER_ATTACKING 2
+#define PLAYER_INTERACTING 3
+
+
 
 // Enums
 typedef enum GAMESTATE {
@@ -179,26 +190,63 @@ typedef struct CAMERA {
     int32_t Mode;
 } CAMERA;
 
+
+typedef struct SPRITESHEET {
+    GAMEBITMAP sheet;
+    std::string spriteName;
+    int32_t width;
+    int32_t height;
+    int32_t rowCount;
+    int32_t columnCount;
+
+    int32_t h_offset;
+    int32_t v_offset;
+
+} SPRITESHEET;
+
+
 typedef struct PLAYER {
-    GAMEBITMAP sprite[9][7];
+    GAMEBITMAP sprite[3][9][15];
+    SPRITESHEET spriteSheets[10];
+    std::string SpriteFilePath;
+    
+    uint32_t animationCount;
+    uint32_t current_animation;
+    uint32_t animation_step;
+    uint32_t idleFrameCount;
+    int32_t animationTimer;
+
     int32_t worldPosX;
     int32_t worldPosY;
     int32_t ScreenPosX;
     int32_t ScreenPosY;
     uint32_t movementRemaining;
     uint32_t direction;
-    uint32_t animation_step;
-    uint32_t idleFrameCount;
+    
+    
     GAMEBITMAP sprite_sheet[5];
     TILE StandingTile;
     uint32_t StandingTile_Index;
     uint8_t noClip;
     uint8_t InRoom;
     BOOL CameraLock;
+
+    int32_t status;
 } PLAYER;
 
 typedef struct NPC {
-    GAMEBITMAP sprite[5][6];
+    GAMEBITMAP sprite[3][9][16];
+    SPRITESHEET spriteSheets[10];
+    std::string SpriteFilePath;
+    std::string Name;
+    std::string DialogueFilePath;
+    std::string PortraitFilePath;
+    
+    uint32_t animationCount;
+    uint32_t current_animation;
+    uint32_t animation_step;
+    int32_t animationTimer;
+
     int32_t worldPosX;
     int32_t worldPosY;
     int32_t ScreenPosX;
@@ -209,13 +257,14 @@ typedef struct NPC {
     uint32_t StandingTile_Index;
     uint32_t movementRemaining;
     uint32_t direction;
-    uint32_t animation_step;
     uint32_t idleFrameCount;
     GAMEBITMAP sprite_sheet[5];
     uint32_t overworld;
     uint32_t visbility;
     GAMEBITMAP Portrait;
     Dialogue Dialogue;
+
+    
 } NPC;
 
 typedef struct ROOM {
@@ -288,18 +337,28 @@ VOID UpdateIdleAnimation(PLAYER*, int32_t, int32_t, int32_t);
 void updatePlayerPosition2D(PLAYER*, int32_t);
 int32_t GetNextPlayerTile2D(PLAYER*, int32_t);
 VOID RelocatePlayer(PLAYER*, int32_t, int32_t, int32_t);
+DWORD InitPlayerDung();
+
+
 
 
 // NPC Initialization and Interaction //
 
 DWORD InitNPC(NPC*, LPCSTR SpriteFilePath, LPCSTR PortraitFilePath, LPCSTR, int32_t overworld, int32_t x, int32_t y, int32_t, int32_t);
-DWORD ImprovedInitNPC(NPC*, LPCSTR, LPCSTR, LPCSTR, int32_t, int32_t, int32_t, int32_t);
+DWORD ImprovedInitNPC(NPC* npc,
+    LPCSTR SpriteFilePath,
+    LPCSTR DialogueFilePath,
+    int32_t x,
+    int32_t y,
+    int32_t offsetX,
+    int32_t offsetY);
 VOID NPC_AMV_Handler();
 VOID InteractionStart(PLAYER Player, NPC NPC);
 VOID InteractionEnd();
 VOID WorldPosBasedRender(NPC*, PLAYER*);
 VOID CameraWorldPosBasedRender(NPC*, CAMERA*);
-VOID UpdateIdleAnimationNPC(NPC*, int32_t, int32_t, int32_t);
+VOID UpdateIdleAnimationNPC(NPC*, int32_t);
+VOID UpdateSprite(PLAYER*,int32_t);
 
 // Tile and Map Generation // 
 
@@ -315,6 +374,8 @@ BOOL GenerateConnectingPathsImproved(ROOM, ROOM, TILE*, TILE*);
 VOID RemoveRoom(std::vector<ROOM>&, int);
 VOID GenerateCorridorsNoWalls(int32_t, TILE*, TILE*);
 int32_t GenerateStairTile(TILE*);
+DWORD InitDungeon(Dungeon Dungeon);
+VOID HandleMenuSelection(int32_t);
 
 // Tile Drawing and Rendering //
 
@@ -327,7 +388,7 @@ VOID BuiltTileMap(TILE*, GAMEBITMAP*);
 
 // World Rendering and Interaction //
 
-VOID RenderDungeonScene(GAMEBITMAP, PLAYER*);
+VOID RenderDungeonScene(PLAYER*);
 VOID RenderTitleScene();
 VOID RenderLoadingScene(char*);
 VOID RenderMainMenuScene();
@@ -338,6 +399,9 @@ VOID HandleOverworldChange(int32_t, int32_t);
 VOID SetWorldPosition(int32_t);
 VOID HandleStairs();
 BOOLEAN IsTileOnScreen(int32_t);
+VOID ChangeOverworld(int32_t);
+VOID HandleOverworldChange(int32_t, int32_t);
+
 
 // Camera Handling // 
 
@@ -350,9 +414,10 @@ VOID LockCameraToPlayer(CAMERA*, PLAYER*);
 
 // Game Logic and State Handling //
 
-VOID HandGamestateChange(GAMESTATE, GAMESTATE, int32_t);
+
 BOOL HandleDialog(Dialogue*);
 VOID HandleOptionSelection(int_fast8_t);
+VOID HandleGamestateChange(GAMESTATE);
 
 // Utility Functions //
 
