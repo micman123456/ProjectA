@@ -309,6 +309,10 @@ VOID DisplayPortrait(GAMEBITMAP);
 VOID ToggleTextBox();
 VOID ToggleOptBox();
 
+
+
+
+
 DWORD ImprovedSpriteSheetLoader(GAMEBITMAP, 
     GAMEBITMAP*, 
     int16_t, 
@@ -374,6 +378,7 @@ BOOL GenerateConnectingPathsImproved(ROOM, ROOM, TILE*, TILE*);
 VOID RemoveRoom(std::vector<ROOM>&, int);
 VOID GenerateCorridorsNoWalls(int32_t, TILE*, TILE*);
 int32_t GenerateStairTile(TILE*);
+int32_t GenerateStairTileSimplfied(TILE*);
 DWORD InitDungeon(Dungeon Dungeon);
 VOID HandleMenuSelection(int32_t);
 

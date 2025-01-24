@@ -50,7 +50,7 @@ int32_t ProceduralGenerator(int32_t RoomAttempts, int32_t MinRoomSize, int32_t M
 
 
     Room_Vector_Copy = Room_Vector;
-    int32_t stairTile = GenerateStairTile(Background_Tiles);
+    int32_t stairTile = GenerateStairTileSimplfied(Background_Tiles);
     while (stairTile == -1){
         logFile << "Stairs did not Generated Successfully: " << stairTile << std::endl;
         GenerateRoomsAttempts(RoomAttempts,MinRoomSize,MaxRoomSize,Background_Tiles,Tile_Type_Array);
@@ -59,7 +59,7 @@ int32_t ProceduralGenerator(int32_t RoomAttempts, int32_t MinRoomSize, int32_t M
         }
         
         Room_Vector_Copy = Room_Vector;
-        stairTile = GenerateStairTile(Background_Tiles);
+        stairTile = GenerateStairTileSimplfied(Background_Tiles);
     }
 
     logFile << "Tile Count" << NUMB_TILES << std::endl;
@@ -185,6 +185,54 @@ int32_t GenerateStairTile(TILE* Background_Tiles) {
     return stairTile;
 }
 
+
+int32_t GenerateStairTileSimplfied(TILE* Background_Tiles)
+{    
+    int32_t stairTile = rand() % NUMB_TILES;
+    int32_t attempts = 0;
+
+    int32_t startingTileX1, startingTileY1, startingTileX2, startingTileY2;
+    startingTileX1 = (STARTING_TILE-10) % NUMB_TILES_PER_ROW;
+    startingTileX2 = (STARTING_TILE+10) % NUMB_TILES_PER_ROW;
+    startingTileY1 = (STARTING_TILE-10) / NUMB_TILES_PER_ROW;
+    startingTileY2 = (STARTING_TILE+10) / NUMB_TILES_PER_ROW;
+
+    while (true)
+    {
+        stairTile = rand() % NUMB_TILES;
+        int32_t stairTileX = stairTile % NUMB_TILES_PER_ROW;
+        int32_t stairTileY = stairTile / NUMB_TILES_PER_ROW;
+
+        if (stairTileX >= startingTileX1 && stairTileX <= startingTileX2 && stairTileY >= startingTileY1 && stairTileY <= startingTileY2 && Background_Tiles[stairTile].type == FLOOR1)
+        {
+            break;
+        } 
+        attempts++;
+        if (attempts > 10000)
+        {
+            break;
+        }
+    }
+
+    if (attempts > 10000)
+    {
+        attempts = 0;
+        while (Background_Tiles[stairTile].type != FLOOR1)
+        {
+            stairTile = rand() % NUMB_TILES;
+            attempts++;
+            if (attempts > 100000)
+            {
+                return -1;
+            }
+
+        }
+
+        
+    }
+
+    return stairTile;
+}
 
 VOID GenerateRoomsAttempts(int32_t Attempts, int32_t MinRoomSize, int32_t MaxRoomSize, TILE *Background_Tiles, TILE* Tile_Type_Array) {
     try {

@@ -613,7 +613,179 @@ void LoadBitFontToScreen(GAMEBITMAP GameBitMap, const std::string& str, int16_t 
     }
     }
 
+//     void Load6x7BitFontToScreen(
+//     char* String,
+//     GAMEBITMAP* FontSheet,
+//     int x,
+//     int y,
+//     int BlueAdjust,
+//     int GreenAdjust,
+//     int RedAdjust,
+//     int AlphaAdjust)
+// {
+//     // Map any char value to an offset dictated by the g6x7Font ordering.
+//     // 0xab and 0xbb are extended ASCII characters that look like double angle brackets.
+//     // We use them as a cursor in menus.
+//     static int FontCharacterPixelOffset[] = {
+//     //  .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. ..
+//         93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,
+//     //     !  "  #  $  %  &  '  (  )  *  +  ,  -  .  /  0  1  2  3  4  5  6  7  8  9  :  ;  <  =  >  ?
+//         94,64,87,66,67,68,70,85,72,73,71,77,88,74,91,92,52,53,54,55,56,57,58,59,60,61,86,84,89,75,90,93,
+//     //  @  A  B  C  D  E  F  G  H  I  J  K  L  M  N  O  P  Q  R  S  T  U  V  W  X  Y  Z  [  \  ]  ^  _
+//         65,0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,80,78,81,69,76,
+//     //  `  a  b  c  d  e  f  g  h  i  j  k  l  m  n  o  p  q  r  s  t  u  v  w  x  y  z  {  |  }  ~  ..
+//         62,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,82,79,83,63,93,
+//     //  .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. ..
+//         93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,
+//     //  .. .. .. .. .. .. .. .. .. .. .. bb .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. ab .. .. .. ..
+//         93,93,93,93,93,93,93,93,93,93,93,96,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,95,93,93,93,93,
+//     //  .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. ..
+//         93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,
+//     //  .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. F2 .. .. .. .. .. .. .. .. .. .. .. .. ..
+//         93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,97,93,93,93,93,93,93,93,93,93,93,93,93,93
+//     };
+
+//     int32_t CharWidth = FontSheet->bitMapInfo.bmiHeader.biWidth / 84;
+//     int32_t CharHeight = FontSheet->bitMapInfo.bmiHeader.biHeight;
+
+//     int BytesPerCharacter = (CharWidth * CharHeight * (FontSheet->bitMapInfo.bmiHeader.biBitCount / 8));
+
+//     int StringLength = (int)strlen(String);
+//     StringLength = StringLength-1;
+
+//     GAMEBITMAP StringBitmap = { 0 };
+
+//     StringBitmap.bitMapInfo.bmiHeader.biBitCount = GAME_BPP;
+
+//     StringBitmap.bitMapInfo.bmiHeader.biHeight = CharHeight;
+
+//     StringBitmap.bitMapInfo.bmiHeader.biWidth = CharWidth * StringLength;
+
+//     StringBitmap.bitMapInfo.bmiHeader.biPlanes = 1;
+
+//     StringBitmap.bitMapInfo.bmiHeader.biCompression = BI_RGB;
+
+//     StringBitmap.memory = calloc(StringLength, BytesPerCharacter);
+
+//     for (int Character = 0; Character < StringLength; Character++)
+//     {
+//         int StartingFontSheetPixel = 0;
+
+//         int FontSheetOffset = 0;
+
+//         int StringBitmapOffset = 0;
+
+//         PIXEL32 FontSheetPixel = { 0 };
+
+//         StartingFontSheetPixel = (FontSheet->bitMapInfo.bmiHeader.biWidth * FontSheet->bitMapInfo.bmiHeader.biHeight) - \
+//             FontSheet->bitMapInfo.bmiHeader.biWidth + (CharWidth * FontCharacterPixelOffset[(uint8_t)String[Character]]);
+
+//         for (int YPixel = 0; YPixel < CharHeight; YPixel++)
+//         {
+//             for (int XPixel = 0; XPixel < CharWidth; XPixel++)
+//             {
+//                 FontSheetOffset = StartingFontSheetPixel + XPixel - (FontSheet->bitMapInfo.bmiHeader.biWidth * YPixel);
+
+//                 StringBitmapOffset = (Character * CharWidth) + ((StringBitmap.bitMapInfo.bmiHeader.biWidth * StringBitmap.bitMapInfo.bmiHeader.biHeight) - \
+//                     StringBitmap.bitMapInfo.bmiHeader.biWidth) + XPixel - (StringBitmap.bitMapInfo.bmiHeader.biWidth) * YPixel;
+
+
+//                 // NOTE: memcpy_s is safer but is much slower.
+//                 //memcpy_s(&FontSheetPixel, sizeof(PIXEL32), (PIXEL32*)FontSheet->Memory + FontSheetOffset, sizeof(PIXEL32));
+//                 memcpy(&FontSheetPixel, (PIXEL32*)FontSheet->memory + FontSheetOffset, sizeof(PIXEL32));
+                
+//                 if (FontSheetPixel.alpha > 0)
+//                 {                    
+//                     //memcpy_s((PIXEL32*)StringBitmap.Memory + StringBitmapOffset, sizeof(PIXEL32), &FontSheetPixel, sizeof(PIXEL32));                    
+//                     memcpy((PIXEL32*)StringBitmap.memory + StringBitmapOffset, &FontSheetPixel, sizeof(PIXEL32));
+//                 }                
+//             }
+//         }
+//     }
+
+    
+//     LoadBitMapToScreen(StringBitmap,x,y,0,0);
+
+//     if (StringBitmap.memory)
+//     {
+//         free(StringBitmap.memory);
+//     }
+// }
+
+void Load6x7BitFontToScreen(GAMEBITMAP GameBitMap, const std::string& str, int16_t x, int16_t y, int16_t center, COLORREF tint) {
+    const int charWidth = GameBitMap.bitMapInfo.bmiHeader.biWidth / 98; // Assuming 98 total characters in a single row
+    const int charHeight = GameBitMap.bitMapInfo.bmiHeader.biHeight;
+    const int stringLength = str.length();
+
+    static int FontCharacterPixelOffset[] = {
+    //  .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. ..
+        93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,
+    //     !  "  #  $  %  &  '  (  )  *  +  ,  -  .  /  0  1  2  3  4  5  6  7  8  9  :  ;  <  =  >  ?
+        94,64,87,66,67,68,70,85,72,73,71,77,88,74,91,92,52,53,54,55,56,57,58,59,60,61,86,84,89,75,90,93,
+    //  @  A  B  C  D  E  F  G  H  I  J  K  L  M  N  O  P  Q  R  S  T  U  V  W  X  Y  Z  [  \  ]  ^  _
+        65,0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,80,78,81,69,76,
+    //  `  a  b  c  d  e  f  g  h  i  j  k  l  m  n  o  p  q  r  s  t  u  v  w  x  y  z  {  |  }  ~  ..
+        62,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,82,79,83,63,93,
+    //  .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. ..
+        93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,
+    //  .. .. .. .. .. .. .. .. .. .. .. bb .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. ab .. .. .. ..
+        93,93,93,93,93,93,93,93,93,93,93,96,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,95,93,93,93,93,
+    //  .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. ..
+        93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,
+    //  .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. .. F2 .. .. .. .. .. .. .. .. .. .. .. .. ..
+        93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,93,97,93,93,93,93,93,93,93,93,93,93,93,93,93
+    };
+
+    GAMEBITMAP stringBitmap = {0};
+    stringBitmap.bitMapInfo.bmiHeader.biBitCount = GAME_BPP;
+    stringBitmap.bitMapInfo.bmiHeader.biWidth = charWidth * stringLength;
+    stringBitmap.bitMapInfo.bmiHeader.biHeight = charHeight;
+    stringBitmap.bitMapInfo.bmiHeader.biCompression = 0;
+    stringBitmap.bitMapInfo.bmiHeader.biPlanes = 1;
+
+    const size_t bytesPerChar = 4 * charWidth * charHeight; // Assuming 32-bit color depth
+    stringBitmap.memory = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, bytesPerChar * stringLength);
+
+    for (int i = 0; i < stringLength; i++) {
+        char currentChar = str[i];
+        if (currentChar < 0 || currentChar > 127) continue; // Skip unsupported characters
+
+        int fontOffset = FontCharacterPixelOffset[static_cast<unsigned char>(currentChar)];
+        if (fontOffset == 93) continue; // Skip characters with no defined offset (unused)
+
+        for (int cy = 0; cy < charHeight; cy++) {
+            for (int cx = 0; cx < charWidth; cx++) {
+                int fontSheetPixelIndex = (fontOffset * charWidth) + cx + (cy * GameBitMap.bitMapInfo.bmiHeader.biWidth);
+                int stringBitmapPixelIndex = (i * charWidth + cx) + (cy * stringBitmap.bitMapInfo.bmiHeader.biWidth);
+
+                PIXEL fontPixel = ((PIXEL*)GameBitMap.memory)[fontSheetPixelIndex];
+
+                // Apply tint only to non-transparent pixels
+                if (fontPixel.alpha > 0) {
+                    PIXEL tintedPixel = fontPixel;
+                    tintedPixel.red = (fontPixel.red * GetRValue(tint)) / 255;
+                    tintedPixel.green = (fontPixel.green * GetGValue(tint)) / 255;
+                    tintedPixel.blue = (fontPixel.blue * GetBValue(tint)) / 255;
+
+                    ((PIXEL*)stringBitmap.memory)[stringBitmapPixelIndex] = tintedPixel;
+                }
+            }
+        }
+    }
+
+    // Adjust for centering
+    int startX = x - (center ? (charWidth * stringLength / 2) : 0);
+    LoadBitMapToScreen(stringBitmap, startX, y,0,0);
+
+    // Free allocated memory
+    HeapFree(GetProcessHeap(), 0, stringBitmap.memory);
+}
+
+
 };
+
+
+
 
 
 

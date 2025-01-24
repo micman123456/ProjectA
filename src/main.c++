@@ -53,6 +53,7 @@ GAMESTATE  NextGameState = GAME_OPENING;
 // Graphic stuff //
 GAMEBITMAP DrawingSurface;
 GAMEBITMAP Font;
+GAMEBITMAP sevenXsixFont;
 GAMEBITMAP TextBox,OptionBox,PortraitBox;
 int8_t gridView = 0;
 
@@ -115,6 +116,7 @@ Menu Menus[2];
 Menu SelectionMenu;
 Menu MainMenu;
 int32_t Page = 0;
+LPSTR MenuText = "Select a Mode";
 
 int32_t Mode = 0; // 0 = overworld | 1 = dung //
 
@@ -172,6 +174,12 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     }
 
     if(Load32BppBitmapFromFile("assets\\fonts\\pmd-fontsheet.bmp",&Font) != ERROR_SUCCESS){
+        MessageBoxA(NULL, "Unable to load font sheet into memory", "Error", MB_ICONEXCLAMATION | MB_OK);
+        result = GetLastError();
+        return result;
+    }
+
+    if(Load32BppBitmapFromFile("assets\\fonts\\6x7font.bmp",&sevenXsixFont) != ERROR_SUCCESS){
         MessageBoxA(NULL, "Unable to load font sheet into memory", "Error", MB_ICONEXCLAMATION | MB_OK);
         result = GetLastError();
         return result;
@@ -685,8 +693,9 @@ VOID process_player_input(void){
                 break;
             
             default:
-                if (CurrentDungeon < 3)
+                if (selection < 3)
                 {
+                    CurrentDungeon = selection;
                     HandleGamestateChange(GAME_DUNGEON_LOADING_SCREEN);
                     InitDungeon(Dungeons[CurrentDungeon]);
                 }
@@ -3158,11 +3167,13 @@ VOID RenderDungeonScene(PLAYER* Player)
 VOID RenderTitleScene(){
 
     graphics.LoadColorToScreen(BlackPixel);
-    graphics.LoadBitFontToScreen(Font,"Project B - Alpha", GAME_WIDTH/2, GAME_HEIGHT/2,1);
+    graphics.Load6x7BitFontToScreen(sevenXsixFont, "Project C - Alpha", GAME_WIDTH/2, GAME_HEIGHT/2, 1, RGB(255, 255, 255));
+    
     switch (flicker)
     {
     case 1:
-        graphics.LoadBitFontToScreen(Font,"Press Enter to continue", GAME_WIDTH/2, GAME_HEIGHT/2 + 15,1);
+       
+        graphics.Load6x7BitFontToScreen(sevenXsixFont, "Press Enter to continue", GAME_WIDTH/2, GAME_HEIGHT/2+15, 1, RGB(255, 255, 255));
         break;
     
     default:
@@ -3190,8 +3201,9 @@ VOID RenderOverWorld(PLAYER* Player)
 VOID RenderMainMenuScene(){
 
     graphics.LoadColorToScreen(BlackPixel);
-    graphics.LoadBitFontToScreen(Font,"Select a Dungeon", GAME_WIDTH/2, GAME_HEIGHT/2,1);
-    DisplayMainMenuToScreen(Menus[Page],45,180);
+    //graphics.LoadBitFontToScreen(Font,MenuText, GAME_WIDTH/2, GAME_HEIGHT/2,1);
+    graphics.Load6x7BitFontToScreen(sevenXsixFont, MenuText, GAME_WIDTH/2, GAME_HEIGHT/2, 1, RGB(255, 255, 255));
+    DisplayMainMenuToScreen(Menus[Page],66,180);
     // graphics.LoadBackScreen();
     // graphics.LoadOverWorldToDrawingSurface();
 
@@ -3199,7 +3211,8 @@ VOID RenderMainMenuScene(){
 
 VOID RenderLoadingScene(char* str){
     graphics.LoadColorToScreen(BlackPixel);
-    graphics.LoadBitFontToScreen(Font,str, GAME_WIDTH/2, GAME_HEIGHT/2,1);
+    //graphics.LoadBitFontToScreen(Font,str, GAME_WIDTH/2, GAME_HEIGHT/2,1);
+    graphics.Load6x7BitFontToScreen(sevenXsixFont,str, GAME_WIDTH/2, GAME_HEIGHT/2,1,RGB(255,255,255));
 }
 
 
@@ -3291,15 +3304,22 @@ VOID HandleGamestateChange(GAMESTATE Next)
 
 
 VOID DisplayMainMenuToScreen(Menu menu, int32_t x, int32_t y){
-    int32_t distance = GAME_WIDTH/(menu.GetCount()+1);
+    int32_t distance = GAME_WIDTH/(menu.GetCount());
     int32_t start = GAME_WIDTH*GAME_HEIGHT - GAME_WIDTH;
     int32_t offset = 0;
 
-    for(int32_t i = 0; i < menu.GetCount();i++){
-        graphics.LoadBitFontToScreen(Font,menu.GetItemContent(i), x, y, 0);
+    for(int32_t i = 0; i < menu.GetCount();i++)
+    {
+        
+        
+        
+        
         if(menu.getSelectedItem() == i){
-        offset = start + (x+4) - ((y+12)*GAME_WIDTH);
-        memset((PIXEL*)DrawingSurface.memory + offset,255,sizeof(PIXEL)*(distance-25));
+            graphics.Load6x7BitFontToScreen(sevenXsixFont,menu.GetItemContent(i), x, y, 1, RGB(0, 255, 0));
+        }
+        else
+        {
+            graphics.Load6x7BitFontToScreen(sevenXsixFont,menu.GetItemContent(i), x, y, 1, RGB(255, 255, 255));
         }
         x+=distance;
    
@@ -4246,6 +4266,7 @@ VOID HandleMenuSelection(int32_t input){
         break;
     case 1:
         Page++;
+        MenuText = "Select a Dungeon";
         break;
     default:
         SendMessageA(gGameWindow,WM_CLOSE,0,0);
